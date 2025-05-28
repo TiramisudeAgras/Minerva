@@ -1,7 +1,6 @@
 // static/js/main.js
 
 document.addEventListener('DOMContentLoaded', () => {
-    // --- DOM Element References ---
     const initialLoader = document.getElementById('initial-loader');
     const controlsContainer = document.getElementById('controls-container');
     const periodSelect = document.getElementById('period-select');
@@ -18,7 +17,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const minervaAsciiArtDiv = document.getElementById('minervaAsciiArtContainer');
     const lastUpdatedPlaceholder = document.getElementById('last-updated-placeholder');
     const copyrightYearSpan = document.getElementById('copyright-year');
-
 
     const tabs = document.querySelectorAll('.tab-link');
     const tabContents = document.querySelectorAll('.tab-content');
@@ -97,17 +95,30 @@ document.addEventListener('DOMContentLoaded', () => {
     `;
     if (minervaAsciiArtDiv) minervaAsciiArtDiv.textContent = MINERVA_ASCII;
     if (copyrightYearSpan) copyrightYearSpan.textContent = new Date().getFullYear();
+    if (lastUpdatedPlaceholder && lastUpdatedPlaceholder.textContent === "Cargando...") {
+        // This is a bit of a hack. Ideally, the Flask template passes this.
+        // For now, if Flask doesn't send it, we'll try to fetch it or use a placeholder.
+        // The Python app.py passes `last_updated_date` to render_template, so this fetch might be redundant
+        // if index.html directly uses {{ last_updated_date }}
+        // Let's assume the template injection works. If not, an API endpoint for this would be good.
+        const lastUpdatedFromHtml = document.body.dataset.lastUpdated; // Assuming we set this in HTML body via Flask
+        if(lastUpdatedFromHtml) {
+            lastUpdatedPlaceholder.textContent = lastUpdatedFromHtml;
+        } else {
+            lastUpdatedPlaceholder.textContent = "No disponible"; 
+        }
+    }
 
 
     const fetchData = async (url) => {
         if(mainLoader) mainLoader.style.display = 'block';
         try {
             const response = await fetch(url);
-            if (!response.ok) throw new Error(`Error HTTP: ${response.status}`);
+            if (!response.ok) throw new Error(`Error HTTP: ${response.status} en ${url}`);
             return await response.json();
         } catch (error) {
             console.error("Error en fetchData:", error);
-            if(resultsContent) resultsContent.innerHTML = `<p class="error">Error al cargar datos: ${error.message}. Verifique la consola del servidor Flask.</p>`;
+            if(resultsContent) resultsContent.innerHTML = `<p class="error">Error al cargar datos: ${error.message}. Verifique la consola del servidor Flask y la del navegador.</p>`;
             throw error; 
         } finally {
             if(mainLoader) mainLoader.style.display = 'none';
@@ -117,12 +128,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const renderSchoolList = (schools) => {
         schoolListContainer.innerHTML = '';
         if (!schools || schools.length === 0) {
-            schoolListContainer.innerHTML = '<small>No se encontraron colegios para los criterios seleccionados.</small>';
+            schoolListContainer.innerHTML = '<p style="padding:1rem; text-align:center;"><small>No se encontraron colegios para los criterios seleccionados.</small></p>';
             return;
         }
         schools.forEach(school => {
             const schoolItem = document.createElement('a');
-            schoolItem.href = '#';
+            schoolItem.href = '#results-container'; // Link to results section for better UX
             schoolItem.className = 'school-list-item';
             schoolItem.dataset.id = school.id; 
             schoolItem.dataset.displayName = school.name;
@@ -136,13 +147,13 @@ document.addEventListener('DOMContentLoaded', () => {
         schoolNameHeader.textContent = school_name_display;
 
         const benchmarksHtml = `
-            <details open><summary><h5>Análisis Comparativo de Desempeño</h5></summary>
+            <details open><summary>Análisis Comparativo de Desempeño</summary>
             <div class="overflow-auto"><table><thead><tr><th>Materia</th><th>Prom. Colegio</th><th>Prom. Depto.</th><th>Prom. Nacional</th></tr></thead><tbody>
             ${benchmarks.map(b => `<tr><td>${b.subject}</td><td>${b.school_avg.toFixed(2)}</td><td>${b.dept_avg.toFixed(2)}</td><td>${b.nat_avg.toFixed(2)}</td></tr>`).join('')}
             </tbody></table></div></details>`;
 
         const levelsHtml = `
-            <details><summary><h5>Distribución de Niveles de Desempeño</h5></summary>
+            <details><summary>Distribución de Niveles de Desempeño</summary>
             <div class="overflow-auto"><table><thead><tr><th>Materia</th><th>Nivel 1/A-</th><th>Nivel 2/A1</th><th>Nivel 3/A2</th><th>Nivel 4/B1/B+</th></tr></thead><tbody>
             ${performance_levels.map(p => {
                 if (p.type === 'english') return `<tr><td>${p.subject}</td><td>${p.levels['A-'] || 0}</td><td>${p.levels['A1'] || 0}</td><td>${p.levels['A2'] || 0}</td><td>${(p.levels['B1'] || 0) + (p.levels['B+'] || 0)}</td></tr>`;
@@ -150,16 +161,16 @@ document.addEventListener('DOMContentLoaded', () => {
             }).join('')}
             </tbody></table></div></details>`;
         
-        const histogramHtml = `<details><summary><h5>Distribución de Puntajes Globales (Colegio)</h5></summary><div id="histogram-chart-container"><canvas id="histogram-chart"></canvas></div></details>`;
+        const histogramHtml = `<details><summary>Distribución de Puntajes Globales (Colegio)</summary><div id="histogram-chart-container"><canvas id="histogram-chart"></canvas></div></details>`;
         
         const studentsHtml = `
-            <details><summary><h5>Resultados Detallados de Estudiantes (${student_list.length})</h5></summary>
+            <details><summary>Resultados Detallados de Estudiantes (${student_list.length})</summary>
             <div class="overflow-auto"><table><thead><tr><th>Fecha de Nac.</th><th>Sexo</th><th>Nacionalidad</th><th>Puntaje Global</th><th>Percentil Global</th></tr></thead><tbody>
             ${student_list.map(s => `<tr><td>${s.estu_fechanacimiento || ''}</td><td>${s.estu_genero || ''}</td><td>${s.estu_nacionalidad || ''}</td><td>${s.punt_global || 0}</td><td>${s.percentil_global ? s.percentil_global + '%' : 'N/A'}</td></tr>`).join('')}
             </tbody></table></div></details>`;
 
         const evolutionHtml = `
-            <details><summary><h5>Evolución Histórica (Promedio Global del Colegio)</h5></summary>
+            <details><summary>Evolución Histórica (Promedio Global del Colegio)</summary>
             <div class="overflow-auto">
                 <div id="evolution-chart-container"><canvas id="evolution-chart"></canvas></div>
                 <table><thead><tr><th>Periodo</th><th>Promedio Global</th></tr></thead><tbody>
@@ -188,7 +199,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (currentHistogramChartInstance) currentHistogramChartInstance.destroy();
         currentHistogramChartInstance = new Chart(ctx, {
             type: 'bar',
-            data: { labels: labels, datasets: [{ label: 'Número de Estudiantes', data: Object.values(bins), backgroundColor: 'rgba(255, 215, 0, 0.6)', borderColor: 'rgba(255, 215, 0, 1)', borderWidth: 1 }] },
+            data: { labels: labels, datasets: [{ label: 'Número de Estudiantes', data: Object.values(bins), backgroundColor: 'rgba(255, 193, 7, 0.7)', borderColor: 'rgba(255, 160, 0, 1)', borderWidth: 1 }] }, 
             options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, title: { display: true, text: 'Cantidad de Estudiantes' } }, x: { title: { display: true, text: 'Rango de Puntaje Global' } } }, plugins: { legend: { display: false } } }
         });
     };
@@ -206,8 +217,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 labels: validHistoricalData.map(d => d.periodo),
                 datasets: [{
                     label: 'Promedio Global Histórico', data: validHistoricalData.map(d => d.media),
-                    borderColor: 'var(--minerva-yellow-darker, #E6C200)', 
-                    backgroundColor: 'rgba(255, 215, 0, 0.1)', fill: true, tension: 0.1
+                    borderColor: 'var(--minerva-yellow-hover, #FFA000)', 
+                    backgroundColor: 'rgba(255, 193, 7, 0.2)', fill: true, tension: 0.1
                 }]
             },
             options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: false, title: { display: true, text: 'Promedio Global' } }, x: { title: { display: true, text: 'Periodo' } } }, plugins: { legend: { display: false } } }
@@ -235,10 +246,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const periodo = periodSelect.value;
         const topN = topNSelect.value;
 
-        schoolListContainer.innerHTML = '<small>Cargando colegios...</small>';
+        schoolListContainer.innerHTML = '<article aria-busy="true"></article>'; // Loading state for school list
         resultsContainer.style.display = 'none';
 
-        if (!department || !periodo) { schoolControls.style.display = 'none'; return; }
+        if (!department || !periodo) { schoolControls.style.display = 'none'; schoolListContainer.innerHTML = '<small>Seleccione periodo y departamento.</small>'; return; }
         
         schoolControls.style.display = 'block';
         let url = `/api/schools/${periodo}/${department}`;
@@ -267,6 +278,9 @@ document.addEventListener('DOMContentLoaded', () => {
         if(mainLoader) mainLoader.style.display = 'block';
         schoolNameHeader.textContent = "Cargando detalles para: " + target.dataset.displayName;
         
+        // Scroll to results container for better UX on mobile
+        resultsContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
         try {
             const periodo = periodSelect.value;
             const department = departmentSelect.value;
@@ -286,19 +300,9 @@ document.addEventListener('DOMContentLoaded', () => {
         event.target.classList.add('active');
         const activeTabContent = document.getElementById(event.target.dataset.tab);
         if (activeTabContent) activeTabContent.classList.add('active');
+        window.location.hash = event.target.dataset.tab; // Update URL hash for SPA feel
     };
     
-    const fetchAndUpdateDate = async () => {
-        // This assumes you might create an API endpoint to serve the last_updated_date
-        // For now, we'll just set it if the placeholder exists.
-        // If `app.py` were to have a `/api/last_updated` endpoint:
-        // const data = await fetchData('/api/last_updated');
-        // if (lastUpdatedPlaceholder && data.date) lastUpdatedPlaceholder.textContent = data.date;
-        // As `index.html` directly receives it from Flask now, this JS fetch might not be needed
-        // unless you want to dynamically update it without page reload.
-        // For now, this function is a placeholder if you decide to fetch it.
-    };
-
     const initializeApp = async () => {
         if(initialLoader) initialLoader.style.display = 'block';
         if(controlsContainer) controlsContainer.style.display = 'none';
@@ -308,8 +312,15 @@ document.addEventListener('DOMContentLoaded', () => {
             if(controlsContainer) controlsContainer.style.display = 'block';
             periodSelect.innerHTML = '<option value="" selected>Seleccione un periodo</option>';
             periods.forEach(period => { const option = document.createElement('option'); option.value = period; option.textContent = period; periodSelect.appendChild(option); });
+            
+            // Fetch and display last updated date from the hidden span if not already set
+            if (lastUpdatedPlaceholder.textContent === "Cargando...") {
+                const lastUpdatedFromHTML = document.body.dataset.lastUpdatedDate; // Passed from Flask template
+                lastUpdatedPlaceholder.textContent = lastUpdatedFromHTML || "No disponible";
+            }
+
         } catch (error) {
-            if(initialLoader) initialLoader.innerHTML = 'Error al cargar periodos iniciales. Intente recargar.';
+            if(initialLoader) initialLoader.innerHTML = 'Error al cargar periodos iniciales. Intente recargar la página.';
         }
 
         periodSelect.addEventListener('change', handlePeriodChange);
@@ -319,15 +330,18 @@ document.addEventListener('DOMContentLoaded', () => {
         schoolListContainer.addEventListener('click', handleSchoolClick);
         tabs.forEach(tab => tab.addEventListener('click', handleTabClick));
         
-        // Set initial active tab based on URL hash if present, otherwise default to 'explorar'
         const currentHash = window.location.hash.substring(1);
-        const activeTabLink = document.querySelector(`.tab-link[data-tab="${currentHash || 'explorar'}"]`);
+        const targetTab = currentHash || 'explorar';
+        const activeTabLink = document.querySelector(`.tab-link[data-tab="${targetTab}"]`);
         if (activeTabLink) {
             tabs.forEach(tab => tab.classList.remove('active'));
             tabContents.forEach(content => content.classList.remove('active'));
             activeTabLink.classList.add('active');
             const activeContent = document.getElementById(activeTabLink.dataset.tab);
             if (activeContent) activeContent.classList.add('active');
+        } else { // Default to explorar if hash is invalid
+             document.querySelector('.tab-link[data-tab="explorar"]').classList.add('active');
+             document.getElementById('explorar').classList.add('active');
         }
     };
 
