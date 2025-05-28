@@ -93,21 +93,24 @@ document.addEventListener('DOMContentLoaded', () => {
 ▓▒▓▓▓▓▓███▓▓▓████████▓████████▓▒▒ ▓▓██▓▓▓████▓▓██▓▓▓███████████▓▒▓██████████████
 ▓▓▓▓▓▓▓███▓▓▓████████▓█████████▓▒▓▒▒▒█▓█▓███▓░▒██▓▓████████████████▓▒▒▓█████████
     `;
-    if (minervaAsciiArtDiv) minervaAsciiArtDiv.textContent = MINERVA_ASCII;
-    if (copyrightYearSpan) copyrightYearSpan.textContent = new Date().getFullYear();
-    if (lastUpdatedPlaceholder && lastUpdatedPlaceholder.textContent === "Cargando...") {
-        // This is a bit of a hack. Ideally, the Flask template passes this.
-        // For now, if Flask doesn't send it, we'll try to fetch it or use a placeholder.
-        // The Python app.py passes `last_updated_date` to render_template, so this fetch might be redundant
-        // if index.html directly uses {{ last_updated_date }}
-        // Let's assume the template injection works. If not, an API endpoint for this would be good.
-        const lastUpdatedFromHtml = document.body.dataset.lastUpdated; // Assuming we set this in HTML body via Flask
-        if(lastUpdatedFromHtml) {
-            lastUpdatedPlaceholder.textContent = lastUpdatedFromHtml;
-        } else {
-            lastUpdatedPlaceholder.textContent = "No disponible"; 
-        }
+    if (minervaAsciiArtDiv) {
+        minervaAsciiArtDiv.textContent = MINERVA_ASCII;
     }
+    if (copyrightYearSpan) {
+        copyrightYearSpan.textContent = new Date().getFullYear();
+    }
+    
+    // Fetch and display last updated date
+    const fetchAndUpdateDate = async () => {
+        // This is now handled by Flask template rendering {{ last_updated_date }}
+        // but we ensure the placeholder is updated if it was 'Cargando...'
+        if (lastUpdatedPlaceholder && lastUpdatedPlaceholder.textContent === "Cargando...") {
+             // The value is injected by Flask into index.html, so this might not be needed
+             // if Flask directly renders it. This is a fallback if the template variable isn't set for some reason.
+             lastUpdatedPlaceholder.textContent = document.body.dataset.lastUpdatedDate || "No disponible";
+        }
+    };
+    fetchAndUpdateDate(); // Call it once
 
 
     const fetchData = async (url) => {
@@ -133,7 +136,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         schools.forEach(school => {
             const schoolItem = document.createElement('a');
-            schoolItem.href = '#results-container'; // Link to results section for better UX
+            schoolItem.href = '#results-container'; 
             schoolItem.className = 'school-list-item';
             schoolItem.dataset.id = school.id; 
             schoolItem.dataset.displayName = school.name;
@@ -174,18 +177,22 @@ document.addEventListener('DOMContentLoaded', () => {
             <div class="overflow-auto">
                 <div id="evolution-chart-container"><canvas id="evolution-chart"></canvas></div>
                 <table><thead><tr><th>Periodo</th><th>Promedio Global</th></tr></thead><tbody>
-                ${historical_evolution.slice().reverse().map(h => `<tr><td>${h.periodo}</td><td>${h.media === -1 ? 'Datos de periodo no disponibles' : (h.media === 0 ? 'Colegio no encontrado/sin datos' : h.media.toFixed(2))}</td></tr>`).join('')}
+                ${historical_evolution.map(h => `<tr><td>${h.periodo}</td><td>${h.media === -1 ? 'Datos de periodo no disponibles' : (h.media === 0 ? 'Colegio no encontrado/sin datos' : h.media.toFixed(2))}</td></tr>`).join('')}
                 </tbody></table>
             </div></details>`;
+            // Removed .slice().reverse() from historical_evolution in table to match chart order
 
         resultsContent.innerHTML = benchmarksHtml + levelsHtml + histogramHtml + studentsHtml + evolutionHtml;
         renderHistogramChart(histogram_data);
-        renderEvolutionChart(historical_evolution);
+        renderEvolutionChart(historical_evolution); // Pass the original order
     };
 
     const renderHistogramChart = (scores) => {
+        const canvasContainer = document.getElementById('histogram-chart-container');
         const canvas = document.getElementById('histogram-chart');
-        if (!canvas) return;
+        if (!canvas || !canvasContainer) return;
+        // Ensure canvas is visible and has dimensions before rendering
+        canvasContainer.style.height = '280px'; // Enforce height via JS if CSS doesn't take always
         const ctx = canvas.getContext('2d');
         
         const bins = {}; const labels = [];
@@ -204,19 +211,30 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     };
     
-    const renderEvolutionChart = (historicalData) => {
+    const renderEvolutionChart = (historicalDataOriginalOrder) => {
+        const canvasContainer = document.getElementById('evolution-chart-container');
         const canvas = document.getElementById('evolution-chart');
-        if(!canvas) return;
+        if(!canvas || !canvasContainer) return;
+        canvasContainer.style.height = '280px';
         const ctx = canvas.getContext('2d');
-        const validHistoricalData = historicalData.filter(d => d.media > 0).reverse(); 
+
+        // Data for chart should be chronological (oldest to newest)
+        const chartData = historicalDataOriginalOrder.filter(d => d.media > 0).sort((a, b) => {
+            const yearA = parseInt(a.periodo.substring(0, 4));
+            const periodSuffixA = parseInt(a.periodo.substring(5));
+            const yearB = parseInt(b.periodo.substring(0, 4));
+            const periodSuffixB = parseInt(b.periodo.substring(5));
+            if (yearA !== yearB) return yearA - yearB;
+            return periodSuffixA - periodSuffixB;
+        });
         
         if (currentEvolutionChartInstance) currentEvolutionChartInstance.destroy();
         currentEvolutionChartInstance = new Chart(ctx, {
             type: 'line',
             data: {
-                labels: validHistoricalData.map(d => d.periodo),
+                labels: chartData.map(d => d.periodo),
                 datasets: [{
-                    label: 'Promedio Global Histórico', data: validHistoricalData.map(d => d.media),
+                    label: 'Promedio Global Histórico', data: chartData.map(d => d.media),
                     borderColor: 'var(--minerva-yellow-hover, #FFA000)', 
                     backgroundColor: 'rgba(255, 193, 7, 0.2)', fill: true, tension: 0.1
                 }]
@@ -228,8 +246,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const handlePeriodChange = async (event) => {
         const periodo = event.target.value;
         departmentSelect.innerHTML = '<option value="">Cargando departamentos...</option>';
-        departmentSelectLabel.style.display = 'none';
-        schoolControls.style.display = 'none';
+        if(departmentSelectLabel) departmentSelectLabel.style.display = 'none';
+        if(schoolControls) schoolControls.style.display = 'none';
         resultsContainer.style.display = 'none';
         schoolListContainer.innerHTML = '<small>Seleccione un departamento.</small>';
         if (!periodo) return;
@@ -237,7 +255,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const departments = await fetchData(`/api/departments/${periodo}`);
             departmentSelect.innerHTML = '<option value="" selected>Seleccione un departamento</option>';
             departments.forEach(dept => { const option = document.createElement('option'); option.value = dept; option.textContent = dept; departmentSelect.appendChild(option); });
-            departmentSelectLabel.style.display = 'block'; departmentSelect.style.display = 'block';
+            if(departmentSelectLabel) departmentSelectLabel.style.display = 'block'; 
+            departmentSelect.style.display = 'block';
         } catch (error) { departmentSelect.innerHTML = '<option value="">Error al cargar deptos.</option>'; }
     };
     
@@ -246,12 +265,14 @@ document.addEventListener('DOMContentLoaded', () => {
         const periodo = periodSelect.value;
         const topN = topNSelect.value;
 
-        schoolListContainer.innerHTML = '<article aria-busy="true"></article>'; // Loading state for school list
+        schoolListContainer.innerHTML = '<article aria-busy="true" style="text-align:center; padding:1rem;"></article>'; 
         resultsContainer.style.display = 'none';
 
-        if (!department || !periodo) { schoolControls.style.display = 'none'; schoolListContainer.innerHTML = '<small>Seleccione periodo y departamento.</small>'; return; }
+        if (!department || !periodo) { 
+            if(schoolControls) schoolControls.style.display = 'none'; 
+            schoolListContainer.innerHTML = '<small>Seleccione periodo y departamento.</small>'; return; }
         
-        schoolControls.style.display = 'block';
+        if(schoolControls) schoolControls.style.display = 'block';
         let url = `/api/schools/${periodo}/${department}`;
         if (topN !== "0") url += `?top=${topN}`;
 
@@ -278,7 +299,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if(mainLoader) mainLoader.style.display = 'block';
         schoolNameHeader.textContent = "Cargando detalles para: " + target.dataset.displayName;
         
-        // Scroll to results container for better UX on mobile
         resultsContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
         try {
@@ -296,11 +316,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const handleTabClick = (event) => {
         event.preventDefault();
         tabs.forEach(tab => tab.classList.remove('active'));
-        tabContents.forEach(content => content.classList.remove('active'));
-        event.target.classList.add('active');
-        const activeTabContent = document.getElementById(event.target.dataset.tab);
-        if (activeTabContent) activeTabContent.classList.add('active');
-        window.location.hash = event.target.dataset.tab; // Update URL hash for SPA feel
+        tabContents.forEach(content => content.classList.remove('active')); // Hide all
+        
+        const clickedTabLink = event.currentTarget; // Use currentTarget
+        clickedTabLink.classList.add('active');
+        
+        const activeTabContentId = clickedTabLink.dataset.tab;
+        const activeTabContent = document.getElementById(activeTabContentId);
+        if (activeTabContent) activeTabContent.classList.add('active'); // Show only the one that should be active
+        
+        window.location.hash = activeTabContentId;
     };
     
     const initializeApp = async () => {
@@ -313,11 +338,8 @@ document.addEventListener('DOMContentLoaded', () => {
             periodSelect.innerHTML = '<option value="" selected>Seleccione un periodo</option>';
             periods.forEach(period => { const option = document.createElement('option'); option.value = period; option.textContent = period; periodSelect.appendChild(option); });
             
-            // Fetch and display last updated date from the hidden span if not already set
-            if (lastUpdatedPlaceholder.textContent === "Cargando...") {
-                const lastUpdatedFromHTML = document.body.dataset.lastUpdatedDate; // Passed from Flask template
-                lastUpdatedPlaceholder.textContent = lastUpdatedFromHTML || "No disponible";
-            }
+            const lastUpdatedFromHTML = document.body.dataset.lastUpdatedDate;
+            if (lastUpdatedPlaceholder) lastUpdatedPlaceholder.textContent = lastUpdatedFromHTML || "No disponible";
 
         } catch (error) {
             if(initialLoader) initialLoader.innerHTML = 'Error al cargar periodos iniciales. Intente recargar la página.';
@@ -330,18 +352,23 @@ document.addEventListener('DOMContentLoaded', () => {
         schoolListContainer.addEventListener('click', handleSchoolClick);
         tabs.forEach(tab => tab.addEventListener('click', handleTabClick));
         
+        // Set initial tab based on hash or default to 'explorar'
         const currentHash = window.location.hash.substring(1);
         const targetTab = currentHash || 'explorar';
+        
+        tabs.forEach(tab => tab.classList.remove('active'));
+        tabContents.forEach(content => content.classList.remove('active'));
+
         const activeTabLink = document.querySelector(`.tab-link[data-tab="${targetTab}"]`);
         if (activeTabLink) {
-            tabs.forEach(tab => tab.classList.remove('active'));
-            tabContents.forEach(content => content.classList.remove('active'));
             activeTabLink.classList.add('active');
-            const activeContent = document.getElementById(activeTabLink.dataset.tab);
+            const activeContent = document.getElementById(targetTab);
             if (activeContent) activeContent.classList.add('active');
-        } else { // Default to explorar if hash is invalid
-             document.querySelector('.tab-link[data-tab="explorar"]').classList.add('active');
-             document.getElementById('explorar').classList.add('active');
+        } else { // Default to explorar if hash is invalid or empty
+             const defaultTabLink = document.querySelector('.tab-link[data-tab="explorar"]');
+             if (defaultTabLink) defaultTabLink.classList.add('active');
+             const defaultTabContent = document.getElementById('explorar');
+             if (defaultTabContent) defaultTabContent.classList.add('active');
         }
     };
 
