@@ -297,7 +297,7 @@ document.addEventListener('DOMContentLoaded', () => {
         resultsContainer.style.display = 'block';
         resultsContent.innerHTML = ''; 
         if(mainLoader) mainLoader.style.display = 'block';
-        schoolNameHeader.textContent = "Cargando detalles (Esto puede tomar algunos minutos!) para: " + target.dataset.displayName;
+        schoolNameHeader.textContent = "Cargando detalles (¡Esto puede tomar algunos minutos!☕) para: " + target.dataset.displayName;
         
         resultsContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
