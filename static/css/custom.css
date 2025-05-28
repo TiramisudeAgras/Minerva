@@ -1,0 +1,84 @@
+/* static/css/custom.css */
+
+/* Apply Lexend Deca to the whole page */
+body {
+    font-family: 'Lexend Deca', sans-serif;
+    --pico-font-family: 'Lexend Deca', sans-serif; /* Override Pico's default */
+}
+
+/* Theme Colors: White base, Yellow accents */
+:root {
+    --pico-background-color: #ffffff; /* White background */
+    --pico-color: #2d3748;            /* Dark gray text (good contrast on white) */
+    
+    /* Accent Color - Yellow */
+    --accent-color: #FFD700; /* A nice gold/yellow */
+    --accent-color-hover: #FFC700; /* Slightly darker yellow for hover */
+    --pico-primary: #0074de; /* Pico's default primary (blue) for some elements if needed, or can be changed */
+    --pico-primary-hover: #005cbf;
+    --pico-primary-focus: rgba(0, 116, 222, 0.25);
+    --pico-primary-inverse: #FFF;
+
+    /* Custom properties for yellow accents */
+    --minerva-yellow: #FFD700;
+    --minerva-yellow-darker: #E6C200;
+    --minerva-yellow-text: #332A00; /* Dark text for on-yellow buttons if needed */
+}
+
+/* Apply accents */
+a, summary {
+    color: var(--pico-primary); /* Keep links blue for standard usability */
+}
+
+a:hover, summary:hover {
+    color: var(--pico-primary-hover);
+}
+
+/* Navigation Tabs */
+nav ul li a.active {
+    background-color: var(--minerva-yellow);
+    color: var(--minerva-yellow-text); /* Darker text for contrast on yellow */
+    border-bottom: 2px solid var(--minerva-yellow-darker);
+}
+nav ul li a:hover {
+    background-color: var(--pico-card-background-color); /* Slight hover for non-active tabs */
+}
+
+
+/* Buttons - Example of how to use accent for primary actions if desired */
+button, input[type="submit"], input[type="reset"], input[type="button"], .pico-button {
+    --pico-background-color: var(--minerva-yellow);
+    --pico-border-color: var(--minerva-yellow);
+    --pico-color: var(--minerva-yellow-text);
+    --pico-box-shadow: 0 0 0 rgba(0,0,0,0); /* Remove default Pico shadow if too much */
+}
+
+button:hover, input[type="submit"]:hover, input[type="reset"]:hover, input[type="button"]:hover, .pico-button:hover {
+    --pico-background-color: var(--minerva-yellow-darker);
+    --pico-border-color: var(--minerva-yellow-darker);
+}
+
+
+/* Specific element highlights with yellow */
+details[open] summary {
+    /* background-color: var(--minerva-yellow-light); /* A lighter yellow for open details */
+    /* border-left: 3px solid var(--minerva-yellow); */
+}
+
+/* Table headers could have a yellow bottom border or light background */
+table th {
+    border-bottom: 2px solid var(--minerva-yellow);
+}
+
+/* Loading spinner color */
+[aria-busy="true"] {
+    --pico-loading-spinner-color: var(--minerva-yellow-darker);
+}
+
+.error {
+    color: var(--pico-color-critical, #D32F2F);
+    background-color: var(--pico-background-color-critical, #FFEBEE);
+    padding: 0.5rem 1rem;
+    border-left: 4px solid var(--pico-color-critical, #D32F2F);
+    border-radius: var(--pico-border-radius);
+}

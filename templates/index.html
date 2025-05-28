@@ -5,68 +5,113 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Minerva - Explorador de Resultados Saber 11</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css"/>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Lexend+Deca:wght@100..900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/custom.css">
     <style>
-        body { padding-bottom: 5rem; }
-        main { display: grid; grid-template-columns: 3fr 7fr; gap: 2rem; }
-        #results-container { display: none; }
-        .school-list-item { display: block; margin-bottom: 0.5rem; padding: 0.75rem; border: 1px solid var(--pico-muted-border-color); border-radius: var(--pico-border-radius); text-decoration: none; cursor: pointer; }
-        .school-list-item:hover { border-color: var(--pico-primary); }
-        .school-list-item h6 { margin-bottom: 0.25rem; }
+        /* Additional styles specific to this page can go here or in custom.css */
+        main { display: grid; grid-template-columns: 3fr 7fr; gap: 2rem; margin-top: 1rem; }
+        #results-container { display: none; } /* Hidden by default */
+        .school-list-item { display: block; margin-bottom: 0.5rem; padding: 0.75rem; border: 1px solid var(--pico-muted-border-color); border-radius: var(--pico-border-radius); text-decoration: none; cursor: pointer; transition: border-color 0.3s ease; }
+        .school-list-item:hover { border-color: var(--accent-color); } /* Yellow accent on hover */
+        .school-list-item h6 { margin-bottom: 0.25rem; color: var(--pico-primary); }
         .school-list-item p { margin-bottom: 0; font-size: 0.9rem; color: var(--pico-secondary); }
-        [aria-busy="true"]#loader {
-            display: block; /* Make it visible when busy */
-            width: fit-content; margin: 2rem auto;
-        }
-         #initial-loader[aria-busy="true"] {
-            font-size: 1.2em; text-align: center; padding: 2rem;
-        }
+        [aria-busy="true"]#loader { display: block; width: fit-content; margin: 2rem auto; }
+        #initial-loader[aria-busy="true"] { font-size: 1.2em; text-align: center; padding: 2rem; }
+        nav ul { padding-left: 0; }
+        nav ul li { display: inline-block; }
+        nav ul li a { padding: 0.5rem 1rem; text-decoration: none; font-weight: bold; }
+        nav ul li a.active { background-color: var(--accent-color); color: var(--pico-primary-background); }
+        .tab-content { display: none; } /* Hide tab content by default */
+        .tab-content.active { display: block; } /* Show active tab content */
+        .ascii-art { font-family: monospace; white-space: pre; line-height: 0.8; text-align: center; padding: 0.5rem 0; font-size: 0.4rem; overflow-x: auto; color: var(--pico-muted-color); margin-bottom: -10px; } /* Adjusted for size */
+        .overflow-auto { max-height: 400px; /* Example height */ }
+
+
         @media (max-width: 992px) { main { grid-template-columns: 1fr; } }
-        .ascii-art { font-family: monospace; white-space: pre; line-height: 1; text-align: center; padding: 1rem 0; font-size: 0.5rem; overflow-x: auto; color: var(--pico-muted-color); }
     </style>
 </head>
 <body>
     <header class="container">
-        <div class="ascii-art">
-        </div>
+        <div class="ascii-art" id="minervaAsciiArt">
+            </div>
         <hgroup>
-            <h1>Minerva - Explorador de Resultados Saber 11</h1>
-            <h2>Herramienta interactiva para el análisis del desempeño académico</h2>
+            <h1>Minerva Explorador de ICFES</h1>
+            <h2 style="color: var(--pico-secondary);">Una herramienta interactiva para el análisis del desempeño académico</h2>
         </hgroup>
+        <nav>
+            <ul>
+                <li><a href="#explorar" class="tab-link active" data-tab="explorar">Explorar Resultados</a></li>
+                <li><a href="#acerca" class="tab-link" data-tab="acerca">Acerca de Minerva</a></li>
+            </ul>
+        </nav>
     </header>
 
-    <main class="container">
-        <aside>
-            <article id="initial-loader" aria-busy="true">Cargando periodos disponibles...</article>
-            
-            <div id="controls-container" style="display:none;">
-                <label for="period-select">1. Seleccione un Periodo</label>
-                <select id="period-select" aria-label="Seleccionar Periodo" required>
-                    <option value="" selected>Cargando periodos...</option>
-                </select>
+    <div id="explorar" class="tab-content active container">
+        <main>
+            <aside>
+                <article id="initial-loader" aria-busy="true">Cargando periodos disponibles...</article>
+                <div id="controls-container" style="display:none;">
+                    <label for="period-select">1. Seleccione un Periodo</label>
+                    <select id="period-select" aria-label="Seleccionar Periodo" required></select>
 
-                <label for="department-select" style="display:none;">2. Seleccione un Departamento</label>
-                <select id="department-select" aria-label="Seleccionar Departamento" required style="display:none;">
-                    <option value="">Seleccione un periodo primero</option>
-                </select>
-                
-                <div id="school-controls" style="display: none;">
-                    <label for="school-search">3. Encuentre un Colegio</label>
-                    <input type="search" id="school-search" placeholder="Buscar por nombre...">
-                    <div id="school-list-container">
-                        <small>Seleccione un departamento para ver la lista de colegios.</small>
+                    <label for="department-select" style="display:none;">2. Seleccione un Departamento</label>
+                    <select id="department-select" aria-label="Seleccionar Departamento" required style="display:none;"></select>
+                    
+                    <div id="school-controls" style="display: none;">
+                        <label for="school-search">3. Encuentre un Colegio</label>
+                        <input type="search" id="school-search" placeholder="Buscar por nombre...">
+                        <label for="top-n-select">Mostrar Top:</label>
+                        <select id="top-n-select">
+                            <option value="0">Todos</option>
+                            <option value="20">20</option>
+                            <option value="50">50</option>
+                            <option value="100">100</option>
+                            <option value="500">500</option>
+                        </select>
+                        <div id="school-list-container" class="overflow-auto" style="max-height: 400px; margin-top:1rem;">
+                            <small>Seleccione un periodo y departamento.</small>
+                        </div>
                     </div>
                 </div>
-            </div>
-        </aside>
+            </aside>
 
-        <section id="results-container">
-            <h3 id="school-name-header">Resultados del Colegio</h3>
-            <article id="loader" aria-busy="true" style="display: none;"></article>
-            <div id="results-content">
-                <p>Seleccione un colegio para ver los detalles.</p>
-            </div>
-        </section>
-    </main>
+            <section id="results-container">
+                <h3 id="school-name-header">Resultados del Colegio</h3>
+                <article id="loader" aria-busy="true" style="display: none;"></article>
+                <div id="results-content">
+                    <p>Seleccione un colegio de la lista para ver los detalles.</p>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <div id="acerca" class="tab-content container">
+        <article>
+            <h3>Acerca de Minerva Explorador de ICFES</h3>
+            <p>Como si se tratase de los sacrosantos códices de la civilización, la información y su interpretación estarían en la cima de la jerarquía. Las grandes decisiones, los avances y, a veces, las incomprensiones que han recorrido la faz de la tierra, en buena parte, se gestaron a partir de un delta en el entendimiento: el mítico "nosotros" contra "ellos", lo conocido contra lo desconocido.</p>
+            <p>El autor estadounidense Stevan Hobfoll atribuye estas disonancias a un componente inherentemente humano, un vestigio de nuestro pasado. Evolutivamente, cuando —al igual que las demás criaturas de la tierra— en nuestras finitas vidas solo conocíamos a nuestro caserío, tenía mucho sentido que sintiéramos una cautela natural hacia lo foráneo. Con cada persona de nuestro grupo sentíamos una cercana conexión o, por lo menos, una familiaridad natural. Si un extraño arribaba a nuestros lindes, ¿confiarías? Otrora, donde solo mandaban las leyes de recursos, donde antes de la revolución agraria eran escasos, tener esa buena fe era un lujo. Sin embargo, como bien menciona el autor Yuval Noah Harari, el humano eventualmente empezó a usar una de sus características únicas: conceptualizar abstracciones.</p>
+            <p>Se sabe que hay un número mágico a la hora de agrupar animales, ya sean manadas de cebras o búfalos. Este número ronda los 150-200 individuos (el número de Dunbar). Como bien mencionaba Euler: «El mundo se reduce a una ley de máximos y mínimos»; hay un punto donde ya se vuelve ineficiente sobrevivir en cohortes de tal tamaño. Así como todos hemos escuchado ese dicho de «Tres son multitud», la biología también manifiesta este principio. Sin embargo, este nudo gordiano fue resuelto por nuestra especie por medio de crear efigies, conceptos abstractos que solo tienen sentido en nuestro imaginario colectivo. Por ejemplo, podríamos asociarnos todos por un color de piel, por venerar a la misma roca o, donde quiero que se concentre esta herramienta, por analizar y comprender de la misma manera los datos que definen nuestro entorno educativo.</p>
+            <h4>Propósito de Minerva</h4>
+            <p>Minerva Explorador de ICFES es una herramienta diseñada para ofrecer una ventana clara y accesible a los resultados de las pruebas Saber 11 en Colombia. Su objetivo es empoderar a administradores de colegios, docentes, estudiantes y padres de familia con datos que permitan entender el desempeño, identificar tendencias y fomentar mejoras educativas. Creemos que la información, presentada de forma comprensible, es una efigie moderna que nos permite colaborar y trascender las limitaciones de lo puramente local.</p>
+            <h4>Metodología</h4>
+            <p>Minerva procesa los datos públicos liberados por el ICFES para cada periodo de examinación. La metodología implementada incluye:</p>
+            <ul>
+                <li><strong>Consolidación de Datos:</strong> Los archivos de texto son procesados y almacenados en una base de datos SQLite local para un acceso rápido y eficiente.</li>
+                <li><strong>Normalización Departamental:</strong> Se aplica una lógica de normalización para el departamento de Bogotá (unificando "BOGOTA" y "BOGOTA D.C." bajo la denominación "BOGOTÁ") para asegurar la consistencia en los cálculos.</li>
+                <li><strong>Cálculo de Promedios (Benchmarks):</strong>
+                    <ul>
+                        <li><strong>Departamentales:</strong> Los promedios para cada departamento se calculan utilizando una metodología híbrida. Para estudiantes inscritos en un colegio, su puntaje se atribuye al departamento de ubicación del colegio (`cole_depto_ubicacion`). Para examinados individuales (sin colegio asociado), su puntaje se atribuye al departamento donde presentaron la prueba (`estu_depto_presentacion`). Esto asegura que todos los resultados contribuyan al promedio departamental más relevante.</li>
+                        <li><strong>Nacionales:</strong> El promedio nacional se calcula como el promedio de los promedios departamentales pre-calculados para cada materia y periodo.</li>
+                    </ul>
+                </li>
+                <li><strong>Identificación Única de Colegios:</strong> Cada colegio se identifica unívocamente por la combinación de su Nombre, Municipio, Naturaleza (Oficial/No Oficial) y Calendario (A/B), además de su Género (Mixto, Masculino, Femenino).</li>
+                <li><strong>Análisis Histórico:</strong> La herramienta permite visualizar la evolución del promedio global de un colegio a lo largo de los últimos cinco periodos disponibles, comparando siempre periodos equivalentes (ej. 2024-1 con 2023-1).</li>
+            </ul>
+            <p>Esta herramienta es un esfuerzo por transformar datos crudos en conocimiento accesible, con la esperanza de contribuir, aunque sea modestamente, a una mejor comprensión de nuestro panorama educativo.</p>
+        </article>
+    </div>
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="/static/js/main.js"></script>
