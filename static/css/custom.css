@@ -6,8 +6,9 @@ body {
     --pico-line-height: 1.6; 
 }
 
+/* Theme Colors: White base, Darker Yellow accents */
 :root[data-theme="light"], :root {
-    --pico-background-color: #fdfdfd; 
+    --pico-background-color: #fbfbfb; 
     --pico-color: #212529;            
     --minerva-yellow: #FFC107; /* Amber */
     --minerva-yellow-hover: #FFA000;   
@@ -76,33 +77,58 @@ summary { font-weight: 500; padding-top: 0.5rem; padding-bottom: 0.5rem; }
 .school-list-item h6 { margin-bottom: 0.3rem; color: var(--pico-color); font-weight: 600; }
 .school-list-item p { margin-bottom: 0; font-size: 0.85rem; color: #555; }
 
-/* ASCII Art Styling - ADJUSTED SIZE */
+/* ASCII Art Styling - Responsive with max/min caps */
 .ascii-art {
     font-family: "Courier New", Courier, monospace;
     white-space: pre;
-    line-height: 0.7;   /* Adjusted for better visual with new font size */
     text-align: center;
-    padding: 0.3rem 0;  /* Adjusted padding */
-    font-size: 5px;    /* Slightly larger than 4px, try 5px or 6px */
-    overflow-x: auto;  /* Keep auto for very wide art, but ideally it fits */
     color: var(--pico-muted-color);
-    margin-bottom: -10px; 
-    max-height: 160px; /* Adjust max-height as needed */
+    
+    font-size: 1vw; /* Base responsive font size */
+    line-height: 0.7; 
+    overflow: hidden; /* Prevent scrollbars by clipping if necessary */
+    
+    padding: 0.3rem 0; /* Adjust padding */
+    margin-bottom: -5px; /* Fine-tune spacing with element below */
+    max-height: 160px; /* Constrain overall height */
 }
+
+/* Media query for medium screens and up (tablets, desktops) */
+@media (min-width: 768px) {
+    .ascii-art {
+        font-size: 6px; /* Set a fixed max size that looks good on desktop */
+        line-height: 0.65; /* Adjust line height for this font size */
+    }
+}
+
+/* Media query for small screens (mobile) */
+@media (max-width: 480px) {
+    .ascii-art {
+        font-size: 0.8vw; /* Make it even smaller relative to viewport on small screens */
+        /* Alternatively, set a smaller fixed px value like 3.5px or 4px */
+        /* font-size: 4px; */ 
+        line-height: 0.6;
+        margin-bottom: 0;
+    }
+}
+
 
 /* Chart Canvas Containers for fixed height */
 #histogram-chart-container, #evolution-chart-container {
     position: relative;
-    height: 280px; /* Constrained height for charts */
-    width: 100%;
+    height: 280px; 
+    width: 100%;   
     margin-top: 1rem;
     padding: 0.5rem;
     border: 1px solid var(--pico-card-border-color);
     border-radius: var(--pico-border-radius);
-    background-color: #fff;
+    background-color: #fff; 
 }
 
-canvas { max-width: 100%; /* Ensure canvas itself doesn't overflow its container */ }
+canvas { 
+    max-width: 100%; 
+    max-height: 100%; 
+}
 
 .tab-content { display: none; padding-top: 1rem; }
 .tab-content.active { display: block; }
