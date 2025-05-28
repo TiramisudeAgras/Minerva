@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Minerva - Explorador de Resultados Saber 11</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css"/>
+    <style>
+        body { padding-bottom: 5rem; }
+        main { display: grid; grid-template-columns: 3fr 7fr; gap: 2rem; }
+        #results-container { display: none; }
+        .school-list-item { display: block; margin-bottom: 0.5rem; padding: 0.75rem; border: 1px solid var(--pico-muted-border-color); border-radius: var(--pico-border-radius); text-decoration: none; cursor: pointer; }
+        .school-list-item:hover { border-color: var(--pico-primary); }
+        .school-list-item h6 { margin-bottom: 0.25rem; }
+        .school-list-item p { margin-bottom: 0; font-size: 0.9rem; color: var(--pico-secondary); }
+        [aria-busy="true"]#loader {
+            display: block; /* Make it visible when busy */
+            width: fit-content; margin: 2rem auto;
+        }
+         #initial-loader[aria-busy="true"] {
+            font-size: 1.2em; text-align: center; padding: 2rem;
+        }
+        @media (max-width: 992px) { main { grid-template-columns: 1fr; } }
+        .ascii-art { font-family: monospace; white-space: pre; line-height: 1; text-align: center; padding: 1rem 0; font-size: 0.5rem; overflow-x: auto; color: var(--pico-muted-color); }
+    </style>
+</head>
+<body>
+    <header class="container">
+        <div class="ascii-art">
+        </div>
+        <hgroup>
+            <h1>Minerva - Explorador de Resultados Saber 11</h1>
+            <h2>Herramienta interactiva para el análisis del desempeño académico</h2>
+        </hgroup>
+    </header>
+
+    <main class="container">
+        <aside>
+            <article id="initial-loader" aria-busy="true">Cargando periodos disponibles...</article>
+            
+            <div id="controls-container" style="display:none;">
+                <label for="period-select">1. Seleccione un Periodo</label>
+                <select id="period-select" aria-label="Seleccionar Periodo" required>
+                    <option value="" selected>Cargando periodos...</option>
+                </select>
+
+                <label for="department-select" style="display:none;">2. Seleccione un Departamento</label>
+                <select id="department-select" aria-label="Seleccionar Departamento" required style="display:none;">
+                    <option value="">Seleccione un periodo primero</option>
+                </select>
+                
+                <div id="school-controls" style="display: none;">
+                    <label for="school-search">3. Encuentre un Colegio</label>
+                    <input type="search" id="school-search" placeholder="Buscar por nombre...">
+                    <div id="school-list-container">
+                        <small>Seleccione un departamento para ver la lista de colegios.</small>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <section id="results-container">
+            <h3 id="school-name-header">Resultados del Colegio</h3>
+            <article id="loader" aria-busy="true" style="display: none;"></article>
+            <div id="results-content">
+                <p>Seleccione un colegio para ver los detalles.</p>
+            </div>
+        </section>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="/static/js/main.js"></script>
+</body>
+</html>
