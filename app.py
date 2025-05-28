@@ -1,4 +1,4 @@
-# app.py (Updated for historical evolution)
+# app.py (Updated for period display formatting)
 
 import sqlite3
 from flask import Flask, jsonify, render_template, request
@@ -12,7 +12,7 @@ DATABASE_NAME = 'minerva_icfes_data.db'
 LAST_UPDATED_FILE = 'minerva_last_updated.txt'
 SCORE_COLUMNS = ['punt_global', 'punt_lectura_critica', 'punt_matematicas', 'punt_c_naturales', 'punt_sociales_ciudadanas', 'punt_ingles']
 MINERVA_ASCII_ART_FOR_WEB = """
-                ░░░░░░░░░░▒▒▒▒▒░▒▒▒▒▒▒▒░░░░▒░░░░░░░░▒░░░▒▒░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░
+                ░░░░░░░░░░▒▒▒▒▒░▒▒▒▒▒▒▒░░░░▒░░░░░░░░▒░░░▒▒░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░
 ░░░░░░░░░░░░▒▒▒▒░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░
 ░░░░░░░░░░░░░▒▒▒▒░░░░░░░░░░░░░░░░░░░░░░░▒░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░
 ░░░░░░░░░░░░░░▒▒░░░░░░░░░░░░░░▓█▓▓▓▓▓░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░
@@ -30,7 +30,7 @@ MINERVA_ASCII_ART_FOR_WEB = """
 ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░▒▒▒▒▓░░░▒▓▒▓▓▓▒░░░░░░░░░░░░░░░░░░░░░░░░░
 ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░▓▒▒▓▒▓▒▒░░░░▒▓░▒▒▓▓▒█▒░░░░░░░░░░░░░░░░░░░░░░░
 ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░▒█▓░▒▓▓▒▒▓▒░░░░░▓░░▓▓▒▒▒░░░░░░░░░░░░░░░░░░░░░░
-░░░░░░░░░░░░░░░░░░░░░░░░░░░░░▒▒▒▒░░░░▒▒░░░░░░░░░░░▓▓░▓░░▓▒░░░░░░░░░░░░░░░░░░░░░░
+░░░e░░░░░░░░░░░░░░░░░░░░░░░░░▒▒▒▒░░░░▒▒░░░░░░░░░░░▓▓░▓░░▓▒░░░░░░░░░░░░░░░░░░░░░
 ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░█▒▓█▓▓▒░░░░░░░▒▒█░░▓█▓▒░░░░░░░░░░░░░░░░░░░░░
 ░░░░░░░░░░░░░░░░░░░░░░░░░▒░▓░░░░▒░░▒░░░░░░░░░░░░░░░░▒▓░░▒█▒░░░░░░░░░░░░░░░░░░░░░
 ░░░░░░░░░░░░░░░░░░░░░░░░░████████████████████▓░░░░░░░▓█▒░▓█▒░░░░░░░░░░░░░░░░░░░░
@@ -92,9 +92,15 @@ def get_last_updated_date():
         with open(LAST_UPDATED_FILE, 'r', encoding='utf-8') as f:
             return f.read().strip()
     except FileNotFoundError:
-        return "Fecha no disponible" # Should be created by create_database.py
+        return "Fecha no disponible"
     except Exception:
         return "Error obteniendo fecha"
+
+def format_period_display(period_str):
+    """Formats '20241' to '2024-1'. Returns original if format is unexpected."""
+    if isinstance(period_str, str) and len(period_str) == 5 and period_str.isdigit():
+        return f"{period_str[:4]}-{period_str[4]}"
+    return period_str
 
 @app.route('/')
 def index():
@@ -106,7 +112,16 @@ def get_periods():
     conn = get_db_connection()
     periods_data = conn.execute("SELECT DISTINCT periodo FROM student_results WHERE periodo IS NOT NULL ORDER BY periodo DESC").fetchall()
     conn.close()
-    return jsonify([row['periodo'] for row in periods_data])
+    
+    # MODIFICATION: Return a list of objects with 'value' and 'display' keys
+    formatted_periods = []
+    for row in periods_data:
+        raw_period = row['periodo']
+        formatted_periods.append({
+            'value': raw_period,
+            'display': format_period_display(raw_period)
+        })
+    return jsonify(formatted_periods)
 
 @app.route('/api/departments/<periodo>')
 def get_departments_for_period(periodo):
@@ -124,7 +139,6 @@ def get_departments_for_period(periodo):
 def get_schools_for_department_period(periodo, department_name):
     top_n_filter = request.args.get('top', type=int, default=0)
     conn = get_db_connection()
-    # Ensure CAST is used for punt_global if it's TEXT in DB, though create_database.py should make it INTEGER/REAL
     query = """
         SELECT 
             cole_nombre_establecimiento, cole_mcpio_ubicacion, cole_naturaleza, cole_calendario, cole_genero,
@@ -145,7 +159,7 @@ def get_schools_for_department_period(periodo, department_name):
         key_parts = [str(row[col] or '') for col in ['cole_nombre_establecimiento', 'cole_mcpio_ubicacion', 'cole_naturaleza', 'cole_calendario']]
         display_parts = [str(row[col] or '') for col in ['cole_nombre_establecimiento', 'cole_mcpio_ubicacion', 'cole_genero', 'cole_naturaleza', 'cole_calendario']]
         school_id_str = "|".join(key_parts)
-        display_name_parts = [p for p in display_parts[1:] if p and p.strip()] # Collect non-empty parts for details
+        display_name_parts = [p for p in display_parts[1:] if p and p.strip()]
         display_name = f"{display_parts[0]} ({' - '.join(display_name_parts)})"
         
         schools_list.append({
@@ -162,7 +176,6 @@ def get_school_details(periodo, department_name, school_id_str):
     cole_nombre, cole_mcpio, cole_nat, cole_cal = school_id_parts
     
     conn = get_db_connection()
-    # Ensure CAST is used for punt_global if it's TEXT in DB
     student_list_query = f"""
         SELECT estu_fechanacimiento, estu_genero, estu_nacionalidad, punt_global, percentil_global
         FROM student_results
@@ -182,10 +195,9 @@ def get_school_details(periodo, department_name, school_id_str):
 
     score_display_map = [('Global', 'punt_global'), ('Matemáticas', 'punt_matematicas'), ('Lectura Crítica', 'punt_lectura_critica'), ('C. Naturales', 'punt_c_naturales'), ('Sociales y Ciu.', 'punt_sociales_ciudadanas'), ('Inglés', 'punt_ingles')]
     for display_name, data_key in score_display_map:
-        # Ensure CAST is used for data_key if it's TEXT in DB
         avg_query = f"""SELECT AVG(CAST("{data_key}" AS REAL)) as promedio FROM student_results
-                        WHERE periodo = ? AND cole_depto_ubicacion_norm = ? AND cole_nombre_establecimiento = ? 
-                              AND cole_mcpio_ubicacion = ? AND cole_naturaleza = ? AND cole_calendario = ? AND "{data_key}" IS NOT NULL AND "{data_key}" != ''"""
+                         WHERE periodo = ? AND cole_depto_ubicacion_norm = ? AND cole_nombre_establecimiento = ? 
+                               AND cole_mcpio_ubicacion = ? AND cole_naturaleza = ? AND cole_calendario = ? AND "{data_key}" IS NOT NULL AND "{data_key}" != ''"""
         avg_data = conn.execute(avg_query, (periodo, department_name, cole_nombre, cole_mcpio, cole_nat, cole_cal)).fetchone()
         current_school_avg = avg_data['promedio'] if avg_data and avg_data['promedio'] is not None else 0
         benchmarking_results.append({'subject': display_name, 'school_avg': current_school_avg, 'dept_avg': dept_bench_map.get(data_key, 0), 'nat_avg': nat_bench_map.get(data_key, 0)})
@@ -194,8 +206,8 @@ def get_school_details(periodo, department_name, school_id_str):
     performance_levels = []
     for display_name, data_key in desemp_display_map:
         levels_query = f"""SELECT "{data_key}" as nivel, COUNT(*) as conteo FROM student_results
-                           WHERE periodo = ? AND cole_depto_ubicacion_norm = ? AND cole_nombre_establecimiento = ? 
-                                 AND cole_mcpio_ubicacion = ? AND cole_naturaleza = ? AND cole_calendario = ? AND "{data_key}" IS NOT NULL AND "{data_key}" != '' GROUP BY "{data_key}" """
+                            WHERE periodo = ? AND cole_depto_ubicacion_norm = ? AND cole_nombre_establecimiento = ? 
+                                  AND cole_mcpio_ubicacion = ? AND cole_naturaleza = ? AND cole_calendario = ? AND "{data_key}" IS NOT NULL AND "{data_key}" != '' GROUP BY "{data_key}" """
         levels_data = conn.execute(levels_query, (periodo, department_name, cole_nombre, cole_mcpio, cole_nat, cole_cal)).fetchall()
         performance_levels.append({'subject': display_name, 'levels': {row['nivel']: row['conteo'] for row in levels_data}, 'type': 'english' if 'ingles' in data_key else 'standard'})
 
@@ -203,17 +215,16 @@ def get_school_details(periodo, department_name, school_id_str):
     
     historical_evolution = []
     current_year_num = int(periodo[:-1])
-    current_period_suffix = periodo[-1] # e.g., "1" or "2"
+    current_period_suffix = periodo[-1]
 
-    # MODIFIED: Include current year in historical evolution
     periods_to_check_for_history = [f"{year}{current_period_suffix}" for year in range(current_year_num, current_year_num - 6, -1)]
 
     for p_key in periods_to_check_for_history:
-        year_display_for_history = f"{p_key[:-1]}-{p_key[-1]}" # For display like "2024-1"
+        year_display_for_history = format_period_display(p_key)
         
         hist_query = f"""SELECT AVG(CAST(punt_global AS REAL)) as promedio_global FROM student_results
-                         WHERE periodo = ? AND cole_depto_ubicacion_norm = ? AND cole_nombre_establecimiento = ? 
-                               AND cole_mcpio_ubicacion = ? AND cole_naturaleza = ? AND cole_calendario = ? AND punt_global IS NOT NULL AND punt_global != '' """
+                           WHERE periodo = ? AND cole_depto_ubicacion_norm = ? AND cole_nombre_establecimiento = ? 
+                                 AND cole_mcpio_ubicacion = ? AND cole_naturaleza = ? AND cole_calendario = ? AND punt_global IS NOT NULL AND punt_global != '' """
         hist_data = conn.execute(hist_query, (p_key, department_name, cole_nombre, cole_mcpio, cole_nat, cole_cal)).fetchone()
         
         if hist_data and hist_data['promedio_global'] is not None:
@@ -221,18 +232,22 @@ def get_school_details(periodo, department_name, school_id_str):
         else:
             period_exists_check = conn.execute("SELECT 1 FROM national_benchmarks WHERE periodo = ? LIMIT 1", (p_key,)).fetchone()
             if period_exists_check:
-                 historical_evolution.append({'periodo': year_display_for_history, 'media': 0}) 
+                historical_evolution.append({'periodo': year_display_for_history, 'media': 0}) 
             else:
-                 historical_evolution.append({'periodo': year_display_for_history, 'media': -1}) 
+                historical_evolution.append({'periodo': year_display_for_history, 'media': -1}) 
     
     cole_genero_data = conn.execute("""SELECT DISTINCT cole_genero FROM student_results WHERE periodo = ? AND cole_nombre_establecimiento = ? 
-                                    AND cole_mcpio_ubicacion = ? AND cole_naturaleza = ? AND cole_calendario = ? AND cole_genero IS NOT NULL AND cole_genero != '' LIMIT 1""", 
-                                    (periodo, cole_nombre, cole_mcpio, cole_nat, cole_cal)).fetchone()
+                                     AND cole_mcpio_ubicacion = ? AND cole_naturaleza = ? AND cole_calendario = ? AND cole_genero IS NOT NULL AND cole_genero != '' LIMIT 1""", 
+                                     (periodo, cole_nombre, cole_mcpio, cole_nat, cole_cal)).fetchone()
     cole_genero_display = cole_genero_data['cole_genero'] if cole_genero_data and cole_genero_data['cole_genero'] else ''
 
     conn.close()
+
+    # MODIFICATION: Format the period in the display name
+    formatted_period_display = format_period_display(periodo)
+    
     return jsonify({
-        'school_name_display': f"{cole_nombre} ({cole_mcpio}{' - ' + cole_genero_display if cole_genero_display else ''} - {cole_nat} - {cole_cal}) | {periodo}",
+        'school_name_display': f"{cole_nombre} ({cole_mcpio}{' - ' + cole_genero_display if cole_genero_display else ''} - {cole_nat} - {cole_cal}) | {formatted_period_display}",
         'student_list': student_list, 'benchmarks': benchmarking_results, 'performance_levels': performance_levels,
         'histogram_data': histogram_data, 'historical_evolution': historical_evolution
     })
@@ -240,4 +255,4 @@ def get_school_details(periodo, department_name, school_id_str):
 if __name__ == '__main__':
     print("Para ejecutar la aplicación web, use el comando: flask run")
     print(f"Asegúrese de que la base de datos '{DATABASE_NAME}' existe y fue creada con 'create_database.py'.")
-    # app.run(debug=True) # Descomentar para desarrollo directo con 'python app.py'
+    # app.run(debug=True)

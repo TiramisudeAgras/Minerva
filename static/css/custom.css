@@ -162,14 +162,14 @@ summary {
     text-align: center;
     color: var(--pico-muted-color);
     
-    font-size: 1.1vw; /* Start with a viewport-width relative font size */
+    font-size: 11px; /* Start with a viewport-width relative font size */
     line-height: 0.65; /* Keep lines tight */
     overflow: hidden; /* Prevent scrollbars by clipping if necessary */
     
     padding-top: 0.5rem;       /* Space above the art */
     padding-bottom: 0.5rem;    /* Increased padding below the art */
     margin-bottom: 0.5rem;     /* Space between art and title group */
-    max-height: 300px;         /* Constrain overall height */
+    max-height: 390px;         /* Constrain overall height */
 }
 
 /* Media query for medium screens and up (tablets, desktops) */

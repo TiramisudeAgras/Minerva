@@ -26,7 +26,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentEvolutionChartInstance = null;
 
     const MINERVA_ASCII = `
-                ░░░░░░░░░░▒▒▒▒▒░▒▒▒▒▒▒▒░░░░▒░░░░░░░░▒░░░▒▒░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░
+                                ░░░░░░░░░░▒▒▒▒▒░▒▒▒▒▒▒▒░░░░▒░░░░░░░░▒░░░▒▒░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░
 ░░░░░░░░░░░░▒▒▒▒░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░
 ░░░░░░░░░░░░░▒▒▒▒░░░░░░░░░░░░░░░░░░░░░░░▒░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░
 ░░░░░░░░░░░░░░▒▒░░░░░░░░░░░░░░▓█▓▓▓▓▓░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░
@@ -168,9 +168,33 @@ document.addEventListener('DOMContentLoaded', () => {
         
         const studentsHtml = `
             <details><summary>Resultados Detallados de Estudiantes (${student_list.length})</summary>
-            <div class="overflow-auto"><table><thead><tr><th>Fecha de Nac.</th><th>Sexo</th><th>Nacionalidad</th><th>Puntaje Global</th><th>Percentil Global</th></tr></thead><tbody>
-            ${student_list.map(s => `<tr><td>${s.estu_fechanacimiento || ''}</td><td>${s.estu_genero || ''}</td><td>${s.estu_nacionalidad || ''}</td><td>${s.punt_global || 0}</td><td>${s.percentil_global ? s.percentil_global + '%' : 'N/A'}</td></tr>`).join('')}
-            </tbody></table></div></details>`;
+            <div class="overflow-auto">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Fecha de Nac.</th>
+                            <th>Sexo</th>
+                            <th>Nacionalidad</th>
+                            <th>Puntaje Global</th>
+                            <th>Percentil Global</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${student_list.map((s, index) => `
+                            <tr>
+                                <td>${index + 1}</td>
+                                <td>${s.estu_fechanacimiento || ''}</td>
+                                <td>${s.estu_genero || ''}</td>
+                                <td>${s.estu_nacionalidad || ''}</td>
+                                <td>${s.punt_global || 0}</td>
+                                <td>${s.percentil_global ? s.percentil_global + '%' : 'N/A'}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+            </details>`;
 
         const evolutionHtml = `
             <details><summary>Evolución Histórica (Promedio Global del Colegio)</summary>
@@ -180,11 +204,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 ${historical_evolution.map(h => `<tr><td>${h.periodo}</td><td>${h.media === -1 ? 'Datos de periodo no disponibles' : (h.media === 0 ? 'Colegio no encontrado/sin datos' : h.media.toFixed(2))}</td></tr>`).join('')}
                 </tbody></table>
             </div></details>`;
-            // Removed .slice().reverse() from historical_evolution in table to match chart order
 
         resultsContent.innerHTML = benchmarksHtml + levelsHtml + histogramHtml + studentsHtml + evolutionHtml;
         renderHistogramChart(histogram_data);
-        renderEvolutionChart(historical_evolution); // Pass the original order
+        renderEvolutionChart(historical_evolution);
     };
 
     const renderHistogramChart = (scores) => {
@@ -336,7 +359,13 @@ document.addEventListener('DOMContentLoaded', () => {
             if(initialLoader) initialLoader.style.display = 'none';
             if(controlsContainer) controlsContainer.style.display = 'block';
             periodSelect.innerHTML = '<option value="" selected>Seleccione un periodo</option>';
-            periods.forEach(period => { const option = document.createElement('option'); option.value = period; option.textContent = period; periodSelect.appendChild(option); });
+            
+            periods.forEach(period => { 
+                const option = document.createElement('option'); 
+                option.value = period.value;
+                option.textContent = period.display;
+                periodSelect.appendChild(option); 
+            });
             
             const lastUpdatedFromHTML = document.body.dataset.lastUpdatedDate;
             if (lastUpdatedPlaceholder) lastUpdatedPlaceholder.textContent = lastUpdatedFromHTML || "No disponible";
@@ -365,10 +394,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const activeContent = document.getElementById(targetTab);
             if (activeContent) activeContent.classList.add('active');
         } else { // Default to explorar if hash is invalid or empty
-             const defaultTabLink = document.querySelector('.tab-link[data-tab="explorar"]');
-             if (defaultTabLink) defaultTabLink.classList.add('active');
-             const defaultTabContent = document.getElementById('explorar');
-             if (defaultTabContent) defaultTabContent.classList.add('active');
+            const defaultTabLink = document.querySelector('.tab-link[data-tab="explorar"]');
+            if (defaultTabLink) defaultTabLink.classList.add('active');
+            const defaultTabContent = document.getElementById('explorar');
+            if (defaultTabContent) defaultTabContent.classList.add('active');
         }
     };
 
