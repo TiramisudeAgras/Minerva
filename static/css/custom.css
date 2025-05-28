@@ -169,13 +169,13 @@ summary {
     padding-top: 0.5rem;       /* Space above the art */
     padding-bottom: 0.5rem;    /* Increased padding below the art */
     margin-bottom: 0.5rem;     /* Space between art and title group */
-    max-height: 180px;         /* Constrain overall height */
+    max-height: 300px;         /* Constrain overall height */
 }
 
 /* Media query for medium screens and up (tablets, desktops) */
 @media (min-width: 768px) {
     .ascii-art {
-        font-size: 6.5px; /* <<--- FINE-TUNE THIS VALUE (e.g., 6px, 7px) */
+        font-size: 11px; /* <<--- FINE-TUNE THIS VALUE (e.g., 6px, 7px) */
         line-height: 0.6; 
     }
 }

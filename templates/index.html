@@ -4,11 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Minerva - Explorador de Resultados Saber 11</title>
+    
+    <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css"/>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Lexend+Deca:wght@100..900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/static/css/custom.css"> </head>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/custom.css') }}">
+</head>
 <body>
     <header class="container">
         <div class="ascii-art" id="minervaAsciiArtContainer">
@@ -64,7 +67,8 @@
         </main>
     </div>
 
-    <div id="acerca" class="tab-content container"> <article>
+    <div id="acerca" class="tab-content container"> 
+        <article>
             <hgroup>
                  <h3>Acerca de Minerva Explorador de ICFES</h3>
                  <h4>Descifrando el Panorama Educativo Colombiano</h4>
@@ -75,16 +79,17 @@
             <h5>Nuestra Filosofía y Metodología</h5>
             <p>Minerva se esfuerza por ofrecer una perspectiva clara y útil sobre los resultados de las pruebas Saber 11. Para lograrlo:</p>
             <ul>
-                <li><strong>Fuente de Datos:</strong> Utilizamos los microdatos públicos anonimizados liberados por el ICFES para cada periodo de examinación.</li>
-                <li><strong>Eficiencia y Acceso:</strong> Los datos son procesados y almacenados en una base de datos SQLite local. Esto permite que la herramienta sea rápida y pueda manejar grandes volúmenes de información eficientemente.</li>
+                <li><strong>Fuente de Datos:</strong> Utilizamos los microdatos públicos anonimizados liberados por el Instituto Colombiano para la Evaluación de la Educación (ICFES) para cada periodo de examinación.</li>
+                <li><strong>Eficiencia y Acceso:</strong> Todos los datos son procesados y almacenados en una base de datos SQLite local. Esto permite que la herramienta sea rápida y pueda manejar grandes volúmenes de información eficientemente.</li>
                 <li><strong>Consistencia:</strong> Se aplica una normalización a los nombres de los departamentos (ej. "BOGOTÁ" unifica todas las variantes de la capital) para asegurar la integridad en los cálculos y comparaciones.</li>
                 <li><strong>Cálculo de Promedios (Benchmarks):</strong>
                     <ul>
-                        <li><strong>Departamentales:</strong> Los promedios se calculan usando una metodología híbrida: para estudiantes de colegio, se usa el departamento de ubicación del colegio; para examinados individuales, el departamento donde presentaron la prueba. Esto ofrece un benchmark departamental robusto.</li>
+                        <li><strong>Departamentales:</strong> Los promedios se calculan utilizando una metodología híbrida: para estudiantes de colegio, se usa el departamento de ubicación del colegio; para examinados individuales, el departamento donde presentaron la prueba. Esto ofrece un benchmark departamental robusto.</li>
                         <li><strong>Nacionales:</strong> El promedio nacional se deriva de los promedios departamentales, brindando un contexto general.</li>
                     </ul>
                 </li>
-                <li><strong>Análisis Histórico:</strong> Visualice la evolución del promedio global de un colegio a lo largo de los últimos cinco periodos disponibles (comparando periodos equivalentes, ej. 2024-1 con 2023-1), permitiendo identificar tendencias.</li>
+                <li><strong>Identificación Única de Colegios:</strong> Cada institución educativa se distingue por una combinación de su Nombre, Municipio, Naturaleza (Oficial/No Oficial), Calendario (A/B) y Género (Mixto, Masculino, Femenino), permitiendo un análisis preciso.</li>
+                <li><strong>Análisis Histórico:</strong> La herramienta permite visualizar la evolución del promedio global de un colegio a lo largo de los últimos periodos disponibles (comparando siempre periodos equivalentes, ej. 2024-1 con 2023-1), permitiendo identificar tendencias.</li>
             </ul>
             <h5>Una Herramienta en Evolución: ¡Su Opinión Cuenta!</h5>
             <p>Minerva es un proyecto concebido para servir y mejorar continuamente. La retroalimentación de la comunidad educativa es fundamental. Si tiene sugerencias, ideas para nuevas funcionalidades, o identifica áreas de mejora, su perspectiva es invaluable para que Minerva siga creciendo y refinando su capacidad de iluminar el panorama educativo.</p>
@@ -100,6 +105,6 @@
     </footer>
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="/static/js/main.js"></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
 </body>
 </html>
