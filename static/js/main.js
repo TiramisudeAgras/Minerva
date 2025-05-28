@@ -14,15 +14,18 @@ document.addEventListener('DOMContentLoaded', () => {
     const resultsContainer = document.getElementById('results-container');
     const schoolNameHeader = document.getElementById('school-name-header');
     const resultsContent = document.getElementById('results-content');
-    const mainLoader = document.getElementById('loader'); // The loader within the results section
-    const minervaAsciiArtDiv = document.getElementById('minervaAsciiArt');
+    const mainLoader = document.getElementById('loader'); 
+    const minervaAsciiArtDiv = document.getElementById('minervaAsciiArtContainer');
+    const lastUpdatedPlaceholder = document.getElementById('last-updated-placeholder');
+    const copyrightYearSpan = document.getElementById('copyright-year');
+
 
     const tabs = document.querySelectorAll('.tab-link');
     const tabContents = document.querySelectorAll('.tab-content');
 
     let allSchoolsInPeriodDepartment = [];
-    let currentChartInstance = null;
-    let currentEvolutionChartInstance = null; // For historical evolution graph
+    let currentHistogramChartInstance = null; 
+    let currentEvolutionChartInstance = null;
 
     const MINERVA_ASCII = `
                 ░░░░░░░░░░▒▒▒▒▒░▒▒▒▒▒▒▒░░░░▒░░░░░░░░▒░░░▒▒░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░
@@ -93,6 +96,7 @@ document.addEventListener('DOMContentLoaded', () => {
 ▓▓▓▓▓▓▓███▓▓▓████████▓█████████▓▒▓▒▒▒█▓█▓███▓░▒██▓▓████████████████▓▒▒▓█████████
     `;
     if (minervaAsciiArtDiv) minervaAsciiArtDiv.textContent = MINERVA_ASCII;
+    if (copyrightYearSpan) copyrightYearSpan.textContent = new Date().getFullYear();
 
 
     const fetchData = async (url) => {
@@ -103,8 +107,8 @@ document.addEventListener('DOMContentLoaded', () => {
             return await response.json();
         } catch (error) {
             console.error("Error en fetchData:", error);
-            if(resultsContent) resultsContent.innerHTML = `<p class="error">Error al cargar datos: ${error.message}</p>`;
-            throw error;
+            if(resultsContent) resultsContent.innerHTML = `<p class="error">Error al cargar datos: ${error.message}. Verifique la consola del servidor Flask.</p>`;
+            throw error; 
         } finally {
             if(mainLoader) mainLoader.style.display = 'none';
         }
@@ -146,7 +150,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }).join('')}
             </tbody></table></div></details>`;
         
-        const histogramHtml = `<details><summary><h5>Distribución de Puntajes Globales (Colegio)</h5></summary><canvas id="histogram-chart"></canvas></details>`;
+        const histogramHtml = `<details><summary><h5>Distribución de Puntajes Globales (Colegio)</h5></summary><div id="histogram-chart-container"><canvas id="histogram-chart"></canvas></div></details>`;
         
         const studentsHtml = `
             <details><summary><h5>Resultados Detallados de Estudiantes (${student_list.length})</h5></summary>
@@ -157,7 +161,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const evolutionHtml = `
             <details><summary><h5>Evolución Histórica (Promedio Global del Colegio)</h5></summary>
             <div class="overflow-auto">
-                <canvas id="evolution-chart" style="max-height:300px;"></canvas>
+                <div id="evolution-chart-container"><canvas id="evolution-chart"></canvas></div>
                 <table><thead><tr><th>Periodo</th><th>Promedio Global</th></tr></thead><tbody>
                 ${historical_evolution.slice().reverse().map(h => `<tr><td>${h.periodo}</td><td>${h.media === -1 ? 'Datos de periodo no disponibles' : (h.media === 0 ? 'Colegio no encontrado/sin datos' : h.media.toFixed(2))}</td></tr>`).join('')}
                 </tbody></table>
@@ -169,55 +173,46 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const renderHistogramChart = (scores) => {
-        const ctx = document.getElementById('histogram-chart').getContext('2d');
+        const canvas = document.getElementById('histogram-chart');
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        
         const bins = {}; const labels = [];
         for (let i = 0; i <= 450; i += 50) { const label = `${i}-${i + 49}`; labels.push(label); bins[label] = 0; }
         scores.forEach(score => {
             const binIndex = Math.floor(score / 50);
             const binLabel = `${binIndex * 50}-${binIndex * 50 + 49}`;
             if (bins[binLabel] !== undefined) bins[binLabel]++;
-            else if (score === 500) bins[labels[labels.length -1]]++;
+            else if (score === 500 && labels.length > 0) bins[labels[labels.length -1]]++;
         });
-        if (currentChartInstance) currentChartInstance.destroy();
-        currentChartInstance = new Chart(ctx, {
+        if (currentHistogramChartInstance) currentHistogramChartInstance.destroy();
+        currentHistogramChartInstance = new Chart(ctx, {
             type: 'bar',
-            data: { labels: labels, datasets: [{ label: 'Número de Estudiantes', data: Object.values(bins), backgroundColor: 'rgba(255, 215, 0, 0.6)', borderColor: 'rgba(255, 215, 0, 1)', borderWidth: 1 }] }, // Yellow
+            data: { labels: labels, datasets: [{ label: 'Número de Estudiantes', data: Object.values(bins), backgroundColor: 'rgba(255, 215, 0, 0.6)', borderColor: 'rgba(255, 215, 0, 1)', borderWidth: 1 }] },
             options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, title: { display: true, text: 'Cantidad de Estudiantes' } }, x: { title: { display: true, text: 'Rango de Puntaje Global' } } }, plugins: { legend: { display: false } } }
         });
     };
     
     const renderEvolutionChart = (historicalData) => {
-        const evolutionCtx = document.getElementById('evolution-chart').getContext('2d');
-        const validHistoricalData = historicalData.filter(d => d.media > 0).reverse(); // Use only valid data, reverse for chronological
+        const canvas = document.getElementById('evolution-chart');
+        if(!canvas) return;
+        const ctx = canvas.getContext('2d');
+        const validHistoricalData = historicalData.filter(d => d.media > 0).reverse(); 
         
-        if (currentEvolutionChartInstance) {
-            currentEvolutionChartInstance.destroy();
-        }
-        currentEvolutionChartInstance = new Chart(evolutionCtx, {
+        if (currentEvolutionChartInstance) currentEvolutionChartInstance.destroy();
+        currentEvolutionChartInstance = new Chart(ctx, {
             type: 'line',
             data: {
                 labels: validHistoricalData.map(d => d.periodo),
                 datasets: [{
-                    label: 'Promedio Global Histórico',
-                    data: validHistoricalData.map(d => d.media),
-                    borderColor: 'var(--minerva-yellow-darker, #E6C200)', // Yellow line
-                    backgroundColor: 'rgba(255, 215, 0, 0.1)', // Light yellow fill
-                    fill: true,
-                    tension: 0.1
+                    label: 'Promedio Global Histórico', data: validHistoricalData.map(d => d.media),
+                    borderColor: 'var(--minerva-yellow-darker, #E6C200)', 
+                    backgroundColor: 'rgba(255, 215, 0, 0.1)', fill: true, tension: 0.1
                 }]
             },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                    y: { beginAtZero: false, title: { display: true, text: 'Promedio Global' } },
-                    x: { title: { display: true, text: 'Periodo' } }
-                },
-                plugins: { legend: { display: false } }
-            }
+            options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: false, title: { display: true, text: 'Promedio Global' } }, x: { title: { display: true, text: 'Periodo' } } }, plugins: { legend: { display: false } } }
         });
     };
-
 
     const handlePeriodChange = async (event) => {
         const periodo = event.target.value;
@@ -247,9 +242,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         schoolControls.style.display = 'block';
         let url = `/api/schools/${periodo}/${department}`;
-        if (topN !== "0") {
-            url += `?top=${topN}`;
-        }
+        if (topN !== "0") url += `?top=${topN}`;
 
         try {
             allSchoolsInPeriodDepartment = await fetchData(url);
@@ -257,7 +250,7 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (error) { schoolListContainer.innerHTML = '<small>Error al cargar los colegios.</small>';}
     };
 
-    const handleSchoolSearch = () => { // No async needed if filtering local data
+    const handleSchoolSearch = () => { 
         const query = schoolSearch.value.toLowerCase();
         if (!allSchoolsInPeriodDepartment) return;
         const filteredSchools = allSchoolsInPeriodDepartment.filter(school => school.raw_name.toLowerCase().includes(query));
@@ -291,7 +284,19 @@ document.addEventListener('DOMContentLoaded', () => {
         tabs.forEach(tab => tab.classList.remove('active'));
         tabContents.forEach(content => content.classList.remove('active'));
         event.target.classList.add('active');
-        document.getElementById(event.target.dataset.tab).classList.add('active');
+        const activeTabContent = document.getElementById(event.target.dataset.tab);
+        if (activeTabContent) activeTabContent.classList.add('active');
+    };
+    
+    const fetchAndUpdateDate = async () => {
+        // This assumes you might create an API endpoint to serve the last_updated_date
+        // For now, we'll just set it if the placeholder exists.
+        // If `app.py` were to have a `/api/last_updated` endpoint:
+        // const data = await fetchData('/api/last_updated');
+        // if (lastUpdatedPlaceholder && data.date) lastUpdatedPlaceholder.textContent = data.date;
+        // As `index.html` directly receives it from Flask now, this JS fetch might not be needed
+        // unless you want to dynamically update it without page reload.
+        // For now, this function is a placeholder if you decide to fetch it.
     };
 
     const initializeApp = async () => {
@@ -309,10 +314,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
         periodSelect.addEventListener('change', handlePeriodChange);
         departmentSelect.addEventListener('change', loadSchoolList);
-        topNSelect.addEventListener('change', loadSchoolList); // Reload school list when Top N changes
+        topNSelect.addEventListener('change', loadSchoolList); 
         schoolSearch.addEventListener('input', handleSchoolSearch);
         schoolListContainer.addEventListener('click', handleSchoolClick);
         tabs.forEach(tab => tab.addEventListener('click', handleTabClick));
+        
+        // Set initial active tab based on URL hash if present, otherwise default to 'explorar'
+        const currentHash = window.location.hash.substring(1);
+        const activeTabLink = document.querySelector(`.tab-link[data-tab="${currentHash || 'explorar'}"]`);
+        if (activeTabLink) {
+            tabs.forEach(tab => tab.classList.remove('active'));
+            tabContents.forEach(content => content.classList.remove('active'));
+            activeTabLink.classList.add('active');
+            const activeContent = document.getElementById(activeTabLink.dataset.tab);
+            if (activeContent) activeContent.classList.add('active');
+        }
     };
 
     initializeApp();

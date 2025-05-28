@@ -1,4 +1,4 @@
-# create_database.py (Corrected f-string syntax)
+# create_database.py
 
 import csv
 import sqlite3
@@ -6,15 +6,18 @@ import glob
 import os
 from collections import defaultdict
 import statistics
+from datetime import datetime # To record update time
 
 # --- Configuration ---
 DATABASE_NAME = 'minerva_icfes_data.db'
+LAST_UPDATED_FILE = 'minerva_last_updated.txt' # To store the last update timestamp
+
 COLUMNS_TO_IMPORT = [
-    'periodo', 'estu_consecutivo', 'estu_genero', 'estu_nacionalidad',
-    'estu_fechanacimiento', 'cole_depto_ubicacion', 'cole_mcpio_ubicacion',
-    'cole_nombre_establecimiento', 'cole_naturaleza', 'cole_calendario', 'cole_genero',
+    'periodo', 'estu_consecutivo', 'estu_genero', 'estu_nacionalidad', 
+    'estu_fechanacimiento', 'cole_depto_ubicacion', 'cole_mcpio_ubicacion', 
+    'cole_nombre_establecimiento', 'cole_naturaleza', 'cole_calendario', 'cole_genero', # Added cole_genero
     'estu_depto_presentacion', 'estu_mcpio_presentacion',
-    'punt_global', 'percentil_global',
+    'punt_global', 'percentil_global', 
     'punt_lectura_critica', 'desemp_lectura_critica',
     'punt_matematicas', 'desemp_matematicas',
     'punt_c_naturales', 'desemp_c_naturales',
@@ -31,7 +34,6 @@ def normalize_department(dept_name):
 
 def create_tables(conn):
     cursor = conn.cursor()
-    # Build column definitions string dynamically, ensuring column names are quoted
     column_defs = ", ".join([f'"{col}" TEXT' for col in COLUMNS_TO_IMPORT])
     
     cursor.execute(f"""
@@ -62,12 +64,8 @@ def populate_student_results(conn, lista_rutas):
     print("Iniciando carga de datos de estudiantes en la base de datos...")
     total_rows_processed_all_files = 0
 
-    # --- CORRECTED SQL STRING CONSTRUCTION ---
-    # Construct the column names part safely
     cols_for_sql = ", ".join([f'"{col}"' for col in COLUMNS_TO_IMPORT])
-    # Construct the full SQL INSERT statement
     insert_sql = f"INSERT INTO student_results ({cols_for_sql}, cole_depto_ubicacion_norm, estu_depto_presentacion_norm, benchmark_dept_norm) VALUES ({','.join(['?']*(len(COLUMNS_TO_IMPORT) + 3))})"
-    # --- END CORRECTION ---
 
     for ruta_archivo in lista_rutas:
         print(f"Procesando archivo para DB: {ruta_archivo}...")
@@ -83,9 +81,9 @@ def populate_student_results(conn, lista_rutas):
                         for col in COLUMNS_TO_IMPORT:
                             val = fila.get(col, '').strip()
                             if col in SCORE_COLUMNS:
-                                data_values.append(int(val) if val else None)
+                                data_values.append(int(val) if val and val.strip() else None)
                             else:
-                                data_values.append(val if val else None)
+                                data_values.append(val if val and val.strip() else None)
                         
                         cole_depto_norm = normalize_department(fila.get('cole_depto_ubicacion', ''))
                         estu_depto_pres_norm = normalize_department(fila.get('estu_depto_presentacion', ''))
@@ -125,9 +123,7 @@ def calculate_and_store_benchmarks(conn):
     cursor.execute("DELETE FROM national_benchmarks")
 
     for materia in SCORE_COLUMNS:
-        # Quoting the materia column name for safety if it contains special characters (though unlikely for these specific keys)
         materia_sql_safe = f'"{materia}"'
-
         query_dept = f"""
         SELECT periodo, benchmark_dept_norm, AVG(CAST({materia_sql_safe} AS REAL))
         FROM student_results
@@ -151,6 +147,16 @@ def calculate_and_store_benchmarks(conn):
     conn.commit()
     print("Benchmarks calculados y almacenados.")
 
+def record_last_updated_time():
+    """Records the current time to a file."""
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    try:
+        with open(LAST_UPDATED_FILE, 'w', encoding='utf-8') as f:
+            f.write(now)
+        print(f"Fecha de última actualización registrada: {now}")
+    except Exception as e:
+        print(f"Error al registrar fecha de actualización: {e}")
+
 def main():
     archivos_de_datos_p1 = glob.glob("Examen_Saber_11_*1.txt")
     archivos_de_datos_p2 = glob.glob("Examen_Saber_11_*2.txt") 
@@ -172,6 +178,7 @@ def main():
     populate_student_results(conn, archivos_de_datos)
     calculate_and_store_benchmarks(conn)
     conn.close()
+    record_last_updated_time() # Record when data was last processed
     print(f"\nProceso completado. La base de datos '{DATABASE_NAME}' ha sido creada/actualizada.")
 
 if __name__ == '__main__':

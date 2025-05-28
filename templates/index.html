@@ -8,37 +8,14 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Lexend+Deca:wght@100..900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/static/css/custom.css">
-    <style>
-        /* Additional styles specific to this page can go here or in custom.css */
-        main { display: grid; grid-template-columns: 3fr 7fr; gap: 2rem; margin-top: 1rem; }
-        #results-container { display: none; } /* Hidden by default */
-        .school-list-item { display: block; margin-bottom: 0.5rem; padding: 0.75rem; border: 1px solid var(--pico-muted-border-color); border-radius: var(--pico-border-radius); text-decoration: none; cursor: pointer; transition: border-color 0.3s ease; }
-        .school-list-item:hover { border-color: var(--accent-color); } /* Yellow accent on hover */
-        .school-list-item h6 { margin-bottom: 0.25rem; color: var(--pico-primary); }
-        .school-list-item p { margin-bottom: 0; font-size: 0.9rem; color: var(--pico-secondary); }
-        [aria-busy="true"]#loader { display: block; width: fit-content; margin: 2rem auto; }
-        #initial-loader[aria-busy="true"] { font-size: 1.2em; text-align: center; padding: 2rem; }
-        nav ul { padding-left: 0; }
-        nav ul li { display: inline-block; }
-        nav ul li a { padding: 0.5rem 1rem; text-decoration: none; font-weight: bold; }
-        nav ul li a.active { background-color: var(--accent-color); color: var(--pico-primary-background); }
-        .tab-content { display: none; } /* Hide tab content by default */
-        .tab-content.active { display: block; } /* Show active tab content */
-        .ascii-art { font-family: monospace; white-space: pre; line-height: 0.8; text-align: center; padding: 0.5rem 0; font-size: 0.4rem; overflow-x: auto; color: var(--pico-muted-color); margin-bottom: -10px; } /* Adjusted for size */
-        .overflow-auto { max-height: 400px; /* Example height */ }
-
-
-        @media (max-width: 992px) { main { grid-template-columns: 1fr; } }
-    </style>
-</head>
+    <link rel="stylesheet" href="/static/css/custom.css"> </head>
 <body>
     <header class="container">
-        <div class="ascii-art" id="minervaAsciiArt">
+        <div class="ascii-art" id="minervaAsciiArtContainer">
             </div>
         <hgroup>
             <h1>Minerva Explorador de ICFES</h1>
-            <h2 style="color: var(--pico-secondary);">Una herramienta interactiva para el análisis del desempeño académico</h2>
+            <h2 style="color: var(--pico-secondary); font-weight: 300;">Una herramienta interactiva para el análisis del desempeño académico</h2>
         </hgroup>
         <nav>
             <ul>
@@ -70,7 +47,7 @@
                             <option value="100">100</option>
                             <option value="500">500</option>
                         </select>
-                        <div id="school-list-container" class="overflow-auto" style="max-height: 400px; margin-top:1rem;">
+                        <div id="school-list-container" class="overflow-auto">
                             <small>Seleccione un periodo y departamento.</small>
                         </div>
                     </div>
@@ -89,29 +66,40 @@
 
     <div id="acerca" class="tab-content container">
         <article>
-            <h3>Acerca de Minerva Explorador de ICFES</h3>
-            <p>Como si se tratase de los sacrosantos códices de la civilización, la información y su interpretación estarían en la cima de la jerarquía. Las grandes decisiones, los avances y, a veces, las incomprensiones que han recorrido la faz de la tierra, en buena parte, se gestaron a partir de un delta en el entendimiento: el mítico "nosotros" contra "ellos", lo conocido contra lo desconocido.</p>
-            <p>El autor estadounidense Stevan Hobfoll atribuye estas disonancias a un componente inherentemente humano, un vestigio de nuestro pasado. Evolutivamente, cuando —al igual que las demás criaturas de la tierra— en nuestras finitas vidas solo conocíamos a nuestro caserío, tenía mucho sentido que sintiéramos una cautela natural hacia lo foráneo. Con cada persona de nuestro grupo sentíamos una cercana conexión o, por lo menos, una familiaridad natural. Si un extraño arribaba a nuestros lindes, ¿confiarías? Otrora, donde solo mandaban las leyes de recursos, donde antes de la revolución agraria eran escasos, tener esa buena fe era un lujo. Sin embargo, como bien menciona el autor Yuval Noah Harari, el humano eventualmente empezó a usar una de sus características únicas: conceptualizar abstracciones.</p>
-            <p>Se sabe que hay un número mágico a la hora de agrupar animales, ya sean manadas de cebras o búfalos. Este número ronda los 150-200 individuos (el número de Dunbar). Como bien mencionaba Euler: «El mundo se reduce a una ley de máximos y mínimos»; hay un punto donde ya se vuelve ineficiente sobrevivir en cohortes de tal tamaño. Así como todos hemos escuchado ese dicho de «Tres son multitud», la biología también manifiesta este principio. Sin embargo, este nudo gordiano fue resuelto por nuestra especie por medio de crear efigies, conceptos abstractos que solo tienen sentido en nuestro imaginario colectivo. Por ejemplo, podríamos asociarnos todos por un color de piel, por venerar a la misma roca o, donde quiero que se concentre esta herramienta, por analizar y comprender de la misma manera los datos que definen nuestro entorno educativo.</p>
-            <h4>Propósito de Minerva</h4>
-            <p>Minerva Explorador de ICFES es una herramienta diseñada para ofrecer una ventana clara y accesible a los resultados de las pruebas Saber 11 en Colombia. Su objetivo es empoderar a administradores de colegios, docentes, estudiantes y padres de familia con datos que permitan entender el desempeño, identificar tendencias y fomentar mejoras educativas. Creemos que la información, presentada de forma comprensible, es una efigie moderna que nos permite colaborar y trascender las limitaciones de lo puramente local.</p>
-            <h4>Metodología</h4>
-            <p>Minerva procesa los datos públicos liberados por el ICFES para cada periodo de examinación. La metodología implementada incluye:</p>
+            <hgroup>
+                 <h3>Acerca de Minerva Explorador de ICFES</h3>
+                 <h4>Descifrando el Panorama Educativo Colombiano</h4>
+            </hgroup>
+            <p>En la vasta sinfonía del conocimiento humano, los datos son las notas que, interpretadas con claridad, componen la melodía del progreso. "Minerva Explorador de ICFES" nace de esta convicción: transformar la extensa data de las pruebas Saber 11 en una herramienta intuitiva y reveladora, accesible para quienes forjan el futuro de la educación en Colombia – administradores, docentes, estudiantes y sus familias.</p>
+            <p>Como los antiguos exploradores que cartografiaban nuevos mundos, Minerva busca trazar un mapa del desempeño académico, permitiendo navegar por los resultados con agilidad. No se trata solo de números, sino de entender las narrativas que estos cuentan: las fortalezas a celebrar, las áreas que reclaman nuestra atención y la evolución de las instituciones a través del tiempo.</p>
+            
+            <h5>Nuestra Filosofía y Metodología</h5>
+            <p>La información, como un faro, tiene el poder de disipar las nieblas de la incertidumbre. Para asegurar la claridad y la equidad en este proceso, Minerva se basa en:</p>
             <ul>
-                <li><strong>Consolidación de Datos:</strong> Los archivos de texto son procesados y almacenados en una base de datos SQLite local para un acceso rápido y eficiente.</li>
-                <li><strong>Normalización Departamental:</strong> Se aplica una lógica de normalización para el departamento de Bogotá (unificando "BOGOTA" y "BOGOTA D.C." bajo la denominación "BOGOTÁ") para asegurar la consistencia en los cálculos.</li>
+                <li><strong>Fuente de Datos:</strong> Utilizamos exclusivamente los microdatos públicos anonimizados y liberados por el Instituto Colombiano para la Evaluación de la Educación (ICFES) para cada periodo de examinación.</li>
+                <li><strong>Consolidación y Eficiencia:</strong> Todos los datos son procesados y almacenados en una base de datos SQLite local. Esto permite que la herramienta sea rápida, eficiente y pueda manejar grandes volúmenes de información sin sobrecargar su sistema o incurrir en altos costos de servidor.</li>
+                <li><strong>Normalización Consistente:</strong> Para asegurar comparaciones justas, se aplica una normalización a los nombres de los departamentos. Por ejemplo, todas las variantes de "Bogotá" (como "BOGOTA D.C.") se consolidan bajo la denominación única "BOGOTÁ".</li>
                 <li><strong>Cálculo de Promedios (Benchmarks):</strong>
                     <ul>
-                        <li><strong>Departamentales:</strong> Los promedios para cada departamento se calculan utilizando una metodología híbrida. Para estudiantes inscritos en un colegio, su puntaje se atribuye al departamento de ubicación del colegio (`cole_depto_ubicacion`). Para examinados individuales (sin colegio asociado), su puntaje se atribuye al departamento donde presentaron la prueba (`estu_depto_presentacion`). Esto asegura que todos los resultados contribuyan al promedio departamental más relevante.</li>
-                        <li><strong>Nacionales:</strong> El promedio nacional se calcula como el promedio de los promedios departamentales pre-calculados para cada materia y periodo.</li>
+                        <li><strong>Departamentales:</strong> Se calculan utilizando una metodología híbrida y robusta. Para estudiantes inscritos en un colegio, su puntaje se atribuye al departamento de ubicación del colegio (`cole_depto_ubicacion`). Para examinados individuales (sin colegio asociado), su puntaje se atribuye al departamento donde presentaron la prueba (`estu_depto_presentacion`).</li>
+                        <li><strong>Nacionales:</strong> El promedio nacional se calcula a partir de los promedios departamentales, ofreciendo un panorama general del desempeño en el país.</li>
                     </ul>
                 </li>
-                <li><strong>Identificación Única de Colegios:</strong> Cada colegio se identifica unívocamente por la combinación de su Nombre, Municipio, Naturaleza (Oficial/No Oficial) y Calendario (A/B), además de su Género (Mixto, Masculino, Femenino).</li>
-                <li><strong>Análisis Histórico:</strong> La herramienta permite visualizar la evolución del promedio global de un colegio a lo largo de los últimos cinco periodos disponibles, comparando siempre periodos equivalentes (ej. 2024-1 con 2023-1).</li>
+                <li><strong>Identificación Única de Colegios:</strong> Cada institución educativa se distingue por una combinación de su Nombre, Municipio, Naturaleza (Oficial/No Oficial), Calendario (A/B) y Género (Mixto, Masculino, Femenino), permitiendo un análisis preciso.</li>
+                <li><strong>Análisis Histórico:</strong> Minerva ofrece una perspectiva longitudinal, mostrando la evolución del promedio global de un colegio a lo largo de los últimos cinco periodos disponibles (comparando siempre periodos equivalentes, ej. 2024-1 con 2023-1).</li>
             </ul>
-            <p>Esta herramienta es un esfuerzo por transformar datos crudos en conocimiento accesible, con la esperanza de contribuir, aunque sea modestamente, a una mejor comprensión de nuestro panorama educativo.</p>
+            <h5>Una Herramienta en Evolución: ¡Su Opinión Cuenta!</h5>
+            <p>Minerva es un proyecto vivo, concebido para servir a la comunidad educativa. Creemos firmemente en el poder de la colaboración y la retroalimentación. Si tiene sugerencias, ideas para nuevas funcionalidades o encuentra alguna inconsistencia, no dude en hacérnoslo saber. Su perspectiva es invaluable para que Minerva siga creciendo y refinando su capacidad de iluminar el camino educativo.</p>
+            <p><em>Que la sabiduría de Minerva nos guíe en la noble tarea de comprender y mejorar.</em></p>
         </article>
     </div>
+    
+    <footer class="container" style="margin-top: 2rem; padding-top: 1rem; border-top: 1px solid var(--pico-muted-border-color);">
+        <small>
+            © <span id="copyright-year"></span> Santiago Acuña G. | Minerva Explorador de ICFES
+            | Datos actualizados por última vez el: <span id="last-updated-placeholder">Cargando...</span>
+        </small>
+    </footer>
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="/static/js/main.js"></script>

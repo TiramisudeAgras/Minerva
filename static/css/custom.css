@@ -3,71 +3,78 @@
 /* Apply Lexend Deca to the whole page */
 body {
     font-family: 'Lexend Deca', sans-serif;
-    --pico-font-family: 'Lexend Deca', sans-serif; /* Override Pico's default */
+    --pico-font-family: 'Lexend Deca', sans-serif;
+    --pico-line-height: 1.65; /* Slightly more line height for Lexend Deca */
 }
 
 /* Theme Colors: White base, Yellow accents */
-:root {
-    --pico-background-color: #ffffff; /* White background */
-    --pico-color: #2d3748;            /* Dark gray text (good contrast on white) */
+:root[data-theme="light"], :root { /* Ensuring it applies even without explicit theme switch */
+    --pico-background-color: #fdfdfd; /* Slightly off-white for comfort */
+    --pico-color: #2a2f36;            
     
-    /* Accent Color - Yellow */
-    --accent-color: #FFD700; /* A nice gold/yellow */
-    --accent-color-hover: #FFC700; /* Slightly darker yellow for hover */
-    --pico-primary: #0074de; /* Pico's default primary (blue) for some elements if needed, or can be changed */
-    --pico-primary-hover: #005cbf;
-    --pico-primary-focus: rgba(0, 116, 222, 0.25);
-    --pico-primary-inverse: #FFF;
+    /* Minerva Yellow Accent Color */
+    --minerva-yellow: #FFD700;         /* Gold/Yellow */
+    --minerva-yellow-hover: #E6BF00;   /* Darker yellow for hover */
+    --minerva-yellow-focus: rgba(255, 215, 0, 0.25);
+    --minerva-yellow-text-on-dark: #201a00; /* Very dark text for on-yellow buttons */
+    --minerva-yellow-text-on-light: #b38600; /* Darker yellow for text if needed */
 
-    /* Custom properties for yellow accents */
-    --minerva-yellow: #FFD700;
-    --minerva-yellow-darker: #E6C200;
-    --minerva-yellow-text: #332A00; /* Dark text for on-yellow buttons if needed */
+    --pico-primary: var(--minerva-yellow); /* Making yellow the primary action color */
+    --pico-primary-hover: var(--minerva-yellow-hover);
+    --pico-primary-focus: var(--minerva-yellow-focus);
+    --pico-primary-inverse: var(--minerva-yellow-text-on-dark); /* Text on primary buttons */
+
+    --pico-card-background-color: #ffffff;
+    --pico-card-border-color: var(--pico-muted-border-color);
+    --pico-border-radius: 0.5rem; /* Slightly more rounded corners */
 }
 
-/* Apply accents */
-a, summary {
-    color: var(--pico-primary); /* Keep links blue for standard usability */
-}
-
-a:hover, summary:hover {
-    color: var(--pico-primary-hover);
-}
+/* Links - standard blue for readability/usability, or can be yellow */
+a { color: #005ea2; /* A good standard blue */ }
+a:hover { color: #003b69; }
 
 /* Navigation Tabs */
 nav ul li a.active {
     background-color: var(--minerva-yellow);
-    color: var(--minerva-yellow-text); /* Darker text for contrast on yellow */
-    border-bottom: 2px solid var(--minerva-yellow-darker);
+    color: var(--minerva-yellow-text-on-dark);
+    border-bottom: 3px solid var(--minerva-yellow-hover);
 }
-nav ul li a:hover {
-    background-color: var(--pico-card-background-color); /* Slight hover for non-active tabs */
+nav ul li a:not(.active):hover {
+    background-color: rgba(255, 215, 0, 0.1); /* Very light yellow hover for non-active tabs */
+    border-bottom: 3px solid transparent;
+}
+nav ul li a {
+     border-bottom: 3px solid transparent; /* For consistent height */
 }
 
 
-/* Buttons - Example of how to use accent for primary actions if desired */
-button, input[type="submit"], input[type="reset"], input[type="button"], .pico-button {
+/* Buttons */
+button, input[type="submit"], input[type="reset"], input[type="button"], .pico-button,
+[role="button"] {
     --pico-background-color: var(--minerva-yellow);
     --pico-border-color: var(--minerva-yellow);
-    --pico-color: var(--minerva-yellow-text);
-    --pico-box-shadow: 0 0 0 rgba(0,0,0,0); /* Remove default Pico shadow if too much */
+    --pico-color: var(--minerva-yellow-text-on-dark);
+    font-weight: 500;
+}
+button:hover, input[type="submit"]:hover, input[type="reset"]:hover, input[type="button"]:hover, .pico-button:hover,
+[role="button"]:hover {
+    --pico-background-color: var(--minerva-yellow-hover);
+    --pico-border-color: var(--minerva-yellow-hover);
 }
 
-button:hover, input[type="submit"]:hover, input[type="reset"]:hover, input[type="button"]:hover, .pico-button:hover {
-    --pico-background-color: var(--minerva-yellow-darker);
-    --pico-border-color: var(--minerva-yellow-darker);
+/* Table headers */
+table th {
+    background-color: rgba(255, 215, 0, 0.1); /* Light yellow for table headers */
+    border-bottom: 2px solid var(--minerva-yellow);
+    font-weight: 500;
 }
-
 
 /* Specific element highlights with yellow */
-details[open] summary {
-    /* background-color: var(--minerva-yellow-light); /* A lighter yellow for open details */
-    /* border-left: 3px solid var(--minerva-yellow); */
+details[open] > summary {
+    background-color: rgba(255, 215, 0, 0.05);
 }
-
-/* Table headers could have a yellow bottom border or light background */
-table th {
-    border-bottom: 2px solid var(--minerva-yellow);
+summary {
+    font-weight: 500;
 }
 
 /* Loading spinner color */
@@ -76,9 +83,31 @@ table th {
 }
 
 .error {
-    color: var(--pico-color-critical, #D32F2F);
-    background-color: var(--pico-background-color-critical, #FFEBEE);
-    padding: 0.5rem 1rem;
-    border-left: 4px solid var(--pico-color-critical, #D32F2F);
+    color: var(--pico-critical-color, #b71c1c); /* Darker red for text */
+    background-color: var(--pico-critical-background, #ffcdd2); /* Lighter red background */
+    padding: 0.75rem 1rem;
+    border-left: 4px solid var(--pico-critical-border-color, #c62828); /* Red border */
     border-radius: var(--pico-border-radius);
+    margin-top: 1rem;
+}
+
+/* Ensure overflow-auto containers have some padding if content is directly inside */
+.overflow-auto {
+    padding: 0.5rem; /* Add some padding if needed */
+    max-height: 450px; /* Default max height */
+}
+#school-list-container.overflow-auto {
+     max-height: 300px; /* Specific height for school list */
+}
+
+/* Histogram and Evolution Chart Canvas containers */
+#histogram-chart-container, #evolution-chart-container {
+    position: relative; /* Needed for Chart.js responsiveness */
+    height: 300px; /* Max height for charts */
+    width: 100%;
+    margin-top: 1rem;
+}
+
+canvas {
+    max-width: 100%;
 }
