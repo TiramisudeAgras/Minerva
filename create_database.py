@@ -10,12 +10,12 @@ from datetime import datetime # To record update time
 
 # --- Configuration ---
 DATABASE_NAME = 'minerva_icfes_data.db'
-LAST_UPDATED_FILE = 'minerva_last_updated.txt' # To store the last update timestamp
+LAST_UPDATED_FILE = 'minerva_last_updated.txt' # To store CREO jaja!
 
 COLUMNS_TO_IMPORT = [
     'periodo', 'estu_consecutivo', 'estu_genero', 'estu_nacionalidad', 
     'estu_fechanacimiento', 'cole_depto_ubicacion', 'cole_mcpio_ubicacion', 
-    'cole_nombre_establecimiento', 'cole_naturaleza', 'cole_calendario', 'cole_genero', # Added cole_genero
+    'cole_nombre_establecimiento', 'cole_naturaleza', 'cole_calendario', 'cole_genero',
     'estu_depto_presentacion', 'estu_mcpio_presentacion',
     'punt_global', 'percentil_global', 
     'punt_lectura_critica', 'desemp_lectura_critica',
@@ -178,7 +178,7 @@ def main():
     populate_student_results(conn, archivos_de_datos)
     calculate_and_store_benchmarks(conn)
     conn.close()
-    record_last_updated_time() # Record when data was last processed
+    record_last_updated_time() # Record LAST USE
     print(f"\nProceso completado. La base de datos '{DATABASE_NAME}' ha sido creada/actualizada.")
 
 if __name__ == '__main__':
