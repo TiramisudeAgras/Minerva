@@ -70,30 +70,39 @@
     <div id="acerca" class="tab-content container"> 
         <article>
             <hgroup>
-                 <h3>Acerca de Minerva Explorador de ICFES</h3>
-                 <h4>Descifrando el Panorama Educativo Colombiano</h4>
+                <h3>Acerca de Minerva Explorador de ICFES</h3>
+                <h4>Una Herramienta para el Análisis de Datos Educativos en Colombia</h4>
             </hgroup>
-            <p>En la vasta sinfonía del conocimiento humano, los datos son las notas que, interpretadas con claridad, componen la melodía del progreso. "Minerva Explorador de ICFES" nace de esta convicción: transformar la extensa data de las pruebas Saber 11 en una herramienta intuitiva y reveladora, accesible para quienes forjan el futuro de la educación en Colombia – administradores, docentes, estudiantes y sus familias.</p>
-            <p>Como los antiguos exploradores que cartografiaban nuevos mundos, Minerva busca trazar un mapa del desempeño académico, permitiendo navegar por los resultados con agilidad. No se trata solo de números, sino de entender las narrativas que estos cuentan: las fortalezas a celebrar, las áreas que reclaman nuestra atención y la evolución de las instituciones a través del tiempo.</p>
+
+            <p>
+                El Instituto Colombiano para la Evaluación de la Educación (ICFES) publica los resultados de las pruebas Saber 11 como datos abiertos, un recurso de inmenso valor para la transparencia. Sin embargo, acceder a las conclusiones que estos datos ofrecen no es una tarea sencilla. La información en su estado original se distribuye en archivos de texto masivos (microdatos) con cientos de miles de registros, que son difíciles de manejar y analizar sin software especializado y conocimientos técnicos.
+            </p>
+            <p>
+                Para un directivo, docente o padre de familia, la tarea de descargar estos archivos, filtrar la información de un colegio específico y realizar cálculos para obtener promedios o tendencias se convierte en un obstáculo significativo. <strong>Minerva nace precisamente para eliminar esa barrera.</strong>
+            </p>
+            <h5>Nuestra Misión</h5>
+            <p>Minerva Explorador de ICFES es una herramienta independiente creada con el objetivo de hacer que los datos públicos de las pruebas Saber 11 sean más accesibles, comprensibles y útiles. La misión de este proyecto es ofrecer a directivos, docentes, padres de familia y estudiantes una plataforma clara y potente para explorar y analizar el desempeño académico, fomentando decisiones informadas y una mejor comprensión del panorama educativo.</p>
             
-            <h5>Nuestra Filosofía y Metodología</h5>
-            <p>Minerva se esfuerza por ofrecer una perspectiva clara y útil sobre los resultados de las pruebas Saber 11. Para lograrlo:</p>
+            <h5>¿Qué Información Encontrará al Analizar un Colegio?</h5>
+            <p>Al seleccionar un periodo, departamento y colegio, Minerva genera un reporte completo que incluye los siguientes análisis clave:</p>
             <ul>
-                <li><strong>Fuente de Datos:</strong> Utilizamos los microdatos públicos anonimizados liberados por el Instituto Colombiano para la Evaluación de la Educación (ICFES) para cada periodo de examinación.</li>
-                <li><strong>Eficiencia y Acceso:</strong> Todos los datos son procesados y almacenados en una base de datos SQLite local. Esto permite que la herramienta sea rápida y pueda manejar grandes volúmenes de información eficientemente.</li>
-                <li><strong>Consistencia:</strong> Se aplica una normalización a los nombres de los departamentos (ej. "BOGOTÁ" unifica todas las variantes de la capital) para asegurar la integridad en los cálculos y comparaciones.</li>
-                <li><strong>Cálculo de Promedios (Benchmarks):</strong>
-                    <ul>
-                        <li><strong>Departamentales:</strong> Los promedios se calculan utilizando una metodología híbrida: para estudiantes de colegio, se usa el departamento de ubicación del colegio; para examinados individuales, el departamento donde presentaron la prueba. Esto ofrece un benchmark departamental robusto.</li>
-                        <li><strong>Nacionales:</strong> El promedio nacional se deriva de los promedios departamentales, brindando un contexto general.</li>
-                    </ul>
-                </li>
-                <li><strong>Identificación Única de Colegios:</strong> Cada institución educativa se distingue por una combinación de su Nombre, Municipio, Naturaleza (Oficial/No Oficial), Calendario (A/B) y Género (Mixto, Masculino, Femenino), permitiendo un análisis preciso.</li>
-                <li><strong>Análisis Histórico:</strong> La herramienta permite visualizar la evolución del promedio global de un colegio a lo largo de los últimos periodos disponibles (comparando siempre periodos equivalentes, ej. 2024-1 con 2023-1), permitiendo identificar tendencias.</li>
+                <li><strong>Análisis Comparativo de Promedios:</strong> Comparamos el puntaje promedio del colegio (global y por materia) con los promedios del departamento y del país (benchmarks), para que pueda ver el desempeño en un contexto amplio.</li>
+                <li><strong>Distribución por Niveles de Desempeño:</strong> Mostramos cuántos estudiantes se ubican en cada nivel (de 1 a 4, y de A- a B+ para inglés). Esto le permite evaluar la distribución de la calidad más allá del simple promedio.</li>
+                <li><strong>Evolución Histórica:</strong> Una gráfica que muestra la tendencia del puntaje global promedio del colegio a lo largo de los últimos años (comparando periodos equivalentes, ej. 2024-1 vs 2023-1), ideal para seguir el progreso en el tiempo.</li>
+                <li><strong>Distribución de Puntajes:</strong> Un histograma que visualiza cómo se agrupan los puntajes de los estudiantes, revelando si los resultados son consistentes, dispersos o se concentran en rangos específicos.</li>
+                <li><strong>Lista Detallada de Estudiantes:</strong> Un listado de los resultados individuales (anónimos) de los estudiantes, ordenados por puntaje, que incluye su percentil global, género y nacionalidad, tal como se encuentra en los datos públicos del ICFES.</li>
             </ul>
-            <h5>Una Herramienta en Evolución: ¡Su Opinión Cuenta!</h5>
-            <p>Minerva es un proyecto concebido para servir y mejorar continuamente. La retroalimentación de la comunidad educativa es fundamental. Si tiene sugerencias, ideas para nuevas funcionalidades, o identifica áreas de mejora, su perspectiva es invaluable para que Minerva siga creciendo y refinando su capacidad de iluminar el panorama educativo.</p>
-            <p><em>Que la sabiduría nos guíe en la noble tarea de comprender y mejorar.</em></p>
+
+            <h5>Transparencia y Datos</h5>
+            <p>Toda la información presentada se procesa a partir de los microdatos abiertos y anonimizados que el ICFES publica oficialmente para cada periodo. Para garantizar la precisión, aplicamos un riguroso proceso de limpieza y normalización, identificando cada colegio de forma única por su nombre, municipio, naturaleza (Oficial/No Oficial) y calendario.</p>
+
+            <hr>
+
+            <h5>Contacto, Sugerencias y Análisis Avanzado</h5>
+            <p>Minerva es un proyecto en constante evolución. Si tiene ideas para nuevas funcionalidades, encuentra alguna inconsistencia en los datos o simplemente quiere dar su opinión, su feedback es fundamental para mejorar esta herramienta.</p>
+            <p><strong>Para directivos y administradores escolares:</strong> Si desea explorar la posibilidad de generar reportes más detallados, acceder a análisis granulares específicos para su institución o discutir las métricas presentadas, por favor, no dude en escribir.</p>
+            <p>Puede contactar al desarrollador, Santiago Acuña G., a través del siguiente correo electrónico (reemplace los elementos entre corchetes): <br><strong>minervaadmin[punto]twerp291[arroba]passmail.net</strong></p>
+
         </article>
     </div>
     
