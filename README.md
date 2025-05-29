@@ -1,10 +1,4 @@
-<<<<<<< Updated upstream
-# Minerva
- Sistema de Analisis de Puntajes del Examen Saber 11
-=======
 # Minerva - Explorador de Resultados ICFES Saber 11
-
-[Página Web de Mineva (¡Úsela Ahora!)] {https://minervasaber.cc}
 
 Minerva es una aplicación web diseñada para facilitar la exploración, el análisis y la comparación de los resultados de las pruebas Saber 11 en Colombia. Su propósito es ofrecer una herramienta accesible e intuitiva para que administradores escolares, docentes, estudiantes y padres de familia puedan comprender y utilizar estos datos públicos de manera efectiva.
 
@@ -45,4 +39,3 @@ Este proyecto se distribuye bajo la licencia GNU GPL. Remítase a la sección de
 ## Contacto y Sugerencias
 
 Para comentarios, sugerencias sobre nuevas funcionalidades, reporte de errores o cualquier consulta sobre Minerva, por favor contactar a través de la información proporcionada en la sección "Acerca de Minerva" dentro de la propia aplicación.
->>>>>>> Stashed changes
