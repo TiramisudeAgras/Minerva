@@ -1,6 +1,6 @@
 # Minerva - Explorador de Resultados ICFES Saber 11
 
-[Página Web de Mineva (¡Úsela Ahora!)] {https://minervasaber.cc}
+[Página Web de Mineva (¡Úsela Ahora!)] (https://minervasaber.cc)
 
 Minerva es una aplicación web diseñada para facilitar la exploración, el análisis y la comparación de los resultados de las pruebas Saber 11 en Colombia. Su propósito es ofrecer una herramienta accesible e intuitiva para que administradores escolares, docentes, estudiantes y padres de familia puedan comprender y utilizar estos datos públicos de manera efectiva.
 
