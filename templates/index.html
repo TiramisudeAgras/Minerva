@@ -110,34 +110,12 @@
                     <li><strong>Lista Detallada de Estudiantes:</strong> Un listado de los resultados individuales (anónimos) de los estudiantes, ordenados por puntaje, que incluye su percentil global, género y nacionalidad, tal como se encuentra en los datos públicos del ICFES.</li>
                 </ul>
 
-                <h5>¿Cómo Funciona Minerva? (La Pila Tecnológica)</h5>
-                <p>Para los interesados en los detalles técnicos, Minerva está construida como una aplicación web moderna que sigue una arquitectura cliente-servidor. A continuación, se detalla el rol de cada componente:</p>
-                <ul>
-                    <li>
-                        <strong>El Backend (Python, Flask y SQLite):</strong> Es el motor de la aplicación, invisible para el usuario final pero encargado de todo el trabajo pesado.
-                        <ul>
-                            <li><strong>Procesamiento Inicial (Script <code>create_database.py</code>):</strong> Antes de que la web esté en línea, un script de Python lee los archivos de texto crudos del ICFES. Realiza la limpieza, normalización (ej. unificar "BOGOTA D.C." y "BOGOTA"), y pre-calcula todos los promedios (benchmarks) nacionales y departamentales.</li>
-                            <li><strong>Base de Datos (SQLite):</strong> Toda esta información procesada se almacena en una base de datos SQLite. Se eligió esta tecnología por ser extremadamente eficiente, rápida y portable, ideal para manejar grandes volúmenes de datos en un entorno de hosting económico como PythonAnywhere.</li>
-                            <li><strong>API (Flask):</strong> Un micro-framework web llamado Flask expone los datos a través de una API. Cuando el usuario hace una selección, el frontend consulta esta API, y Flask se encarga de buscar en la base de datos y devolver únicamente la información solicitada en formato JSON.</li>
-                        </ul>
-                    </li>
-                    <li>
-                        <strong>El Frontend (HTML, CSS y JavaScript):</strong> Es todo lo que usted ve e interactúa en su navegador.
-                        <ul>
-                            <li><strong>HTML:</strong> Proporciona la estructura de la página: los títulos, las listas, las tablas y los contenedores.</li>
-                            <li><strong>CSS (Pico.css):</strong> Se encarga de todo el estilo visual. Utilizamos el framework ligero Pico.css para asegurar un diseño limpio, moderno y adaptable a móviles y escritorio.</li>
-                            <li><strong>JavaScript:</strong> Es el responsable de la interactividad. Se ejecuta en su navegador para comunicarse con el backend. Cuando usted selecciona un periodo, JavaScript solicita la lista de departamentos a la API de Flask y actualiza el menú desplegable. Al elegir un colegio, obtiene los datos y utiliza la librería <strong>Chart.js</strong> para dibujar las gráficas que ve en pantalla.</li>
-                        </ul>
-                    </li>
-                </ul>
-                <p>En resumen, Python y SQLite realizan el trabajo pesado de preparación de datos una sola vez, y Flask los sirve eficientemente a través de una API. El código JavaScript de su navegador consume estos datos para crear una experiencia de usuario rápida e interactiva, permitiéndole explorar estos complejos datos de manera sencilla.</p>
-
                 <hr>
 
                 <h5>Contacto, Sugerencias y Análisis Avanzado</h5>
-                <p>Minerva es un proyecto en constante evolución. Si tiene ideas para nuevas funcionalidades, encuentra alguna inconsistencia en los datos o simplemente quiere dar su opinión, su feedback es fundamental para mejorar esta herramienta.</p>
+                <p><strong></strong>Minerva es un proyecto en constante evolución.</strong>  Si tiene ideas para nuevas funcionalidades, encuentra alguna inconsistencia en los datos o simplemente quiere dar su opinión, su retroalimentación es fundamental para mejorar esta herramienta.</p>
                 <p><strong>Para directivos y administradores escolares:</strong> Si desea explorar la posibilidad de generar reportes más detallados, acceder a análisis granulares específicos para su institución o discutir las métricas presentadas, por favor, no dude en escribir.</p>
-                <p>Puede contactar al desarrollador, Santiago Acuña G., a través del siguiente correo electrónico (reemplace los elementos entre corchetes): <br><strong>santiago.acuna.g [at] gmail [dot] com</strong></p>
+                <p>Puede contactar al desarrollador, Santiago Acuña G., a través del siguiente correo electrónico (reemplace los elementos entre corchetes): <br><strong>minervaadmin[punto]twerp291[arroba]passmail.net</strong></p>
 
             </article>
         </div>
