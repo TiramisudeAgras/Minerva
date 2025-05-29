@@ -6,6 +6,7 @@ from datetime import datetime
 from collections import defaultdict
 from flask import Flask, jsonify, render_template, request
 import requests # Necesario para la verificación de Turnstile
+import configparser
 
 # --- Configuración Global ---
 DATABASE_NAME = 'minerva_icfes_data.db'
@@ -13,9 +14,31 @@ LAST_UPDATED_FILE = 'minerva_last_updated.txt'
 # Definimos las columnas de puntajes principales para referencia y consistencia con create_database.py.
 SCORE_COLUMNS = ['punt_global', 'punt_lectura_critica', 'punt_matematicas', 'punt_c_naturales', 'punt_sociales_ciudadanas', 'punt_ingles']
 
-# --- Clave Secreta de Cloudflare Turnstile ---
-# Esta clave DEBE mantenerse en secreto y configurarse como variable de entorno en producción.
-CLOUDFLARE_TURNSTILE_SECRET_KEY = os.environ.get('CLOUDFLARE_TURNSTILE_SECRET_KEY')
+# --- Cargar Clave Secreta de Cloudflare Turnstile desde Archivo ---
+CLOUDFLARE_TURNSTILE_SECRET_KEY = None
+SECRET_KEY_FILE_PATH = '/home/Chachalingo/mysite/crypto/.config_secrets.ini'
+
+try:
+    # Usar Sistema Ini!
+    config = configparser.ConfigParser()
+    if os.path.exists(SECRET_KEY_FILE_PATH) and os.path.getsize(SECRET_KEY_FILE_PATH) > 0:
+        config.read(SECRET_KEY_FILE_PATH)
+        if 'CLOUDFLARE' in config and 'TURNSTILE_SECRET_KEY' in config['CLOUDFLARE']:
+            CLOUDFLARE_TURNSTILE_SECRET_KEY = config['CLOUDFLARE']['TURNSTILE_SECRET_KEY']
+        else:
+            print(f"ADVERTENCIA: La sección [CLOUDFLARE] o la clave TURNSTILE_SECRET_KEY no se encontró en {SECRET_KEY_FILE_PATH}")
+    else:
+        print(f"ADVERTENCIA: Archivo de clave secreta no encontrado o vacío en {SECRET_KEY_FILE_PATH}")
+
+except FileNotFoundError:
+    print(f"ADVERTENCIA: Archivo de clave secreta no encontrado en {SECRET_KEY_FILE_PATH}")
+except Exception as e:
+    print(f"Error al leer el archivo de clave secreta ({SECRET_KEY_FILE_PATH}): {e}")
+
+if not CLOUDFLARE_TURNSTILE_SECRET_KEY:
+    print("ADVERTENCIA CRÍTICA: La Secret Key de Cloudflare Turnstile NO ESTÁ CARGADA.")
+    print("La verificación de Turnstile probablemente fallará o será insegura si la app continúa.")
+    raise RuntimeError("Falta la configuración de CLOUDFLARE_TURNSTILE_SECRET_KEY. La aplicación no puede iniciar de forma segura.")
 
 MINERVA_ASCII_ART_FOR_WEB = """
                                 ░░░░░░░░░░▒▒▒▒▒░▒▒▒▒▒▒▒░░░░▒░░░░░░░░▒░░░▒▒░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░
