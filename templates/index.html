@@ -11,109 +11,143 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Lexend+Deca:wght@100..900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/custom.css') }}">
+
+    <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
 </head>
 <body>
-    <header class="container">
-        <div class="ascii-art" id="minervaAsciiArtContainer">
-            </div>
+    <div id="turnstile-challenge-container" class="container" style="text-align: center; padding-top: 3rem;">
         <hgroup>
-            <h1>Minerva Explorador de ICFES</h1>
-            <h2 style="color: var(--pico-secondary); font-weight: 300;">Una herramienta interactiva para el análisis del desempeño académico</h2>
+            <h2>Minerva Explorador de ICFES</h2>
+            <p>Verificando su navegador para asegurar el acceso 🦉🔎...</p>
         </hgroup>
-        <nav>
-            <ul>
-                <li><a href="#explorar" class="tab-link active" data-tab="explorar">Explorar Resultados</a></li>
-                <li><a href="#acerca" class="tab-link" data-tab="acerca">Acerca de Minerva</a></li>
-            </ul>
-        </nav>
-    </header>
+        <div class="cf-turnstile" 
+             data-sitekey="0x4AAAAAABfGq_kGj3SpckxA" 
+             data-callback="onTurnstileSuccess"
+             data-error-callback="onTurnstileError">
+        </div>
+        <p id="turnstile-status-message" style="margin-top: 1rem; display: none;"></p>
+    </div>
 
-    <div id="explorar" class="tab-content active container">
-        <main>
-            <aside>
-                <article id="initial-loader" aria-busy="true">Cargando periodos disponibles...</article>
-                <div id="controls-container" style="display:none;">
-                    <label for="period-select">1. Seleccione un Periodo</label>
-                    <select id="period-select" aria-label="Seleccionar Periodo" required></select>
+    <div id="minerva-app-container" style="display:none;">
+        <header class="container">
+            <div class="ascii-art" id="minervaAsciiArtContainer">
+                </div>
+            <hgroup>
+                <h1>Minerva Explorador de ICFES</h1>
+                <h2 style="color: var(--pico-secondary); font-weight: 300;">Una herramienta interactiva para el análisis del desempeño académico</h2>
+            </hgroup>
+            <nav>
+                <ul>
+                    <li><a href="#explorar" class="tab-link active" data-tab="explorar">Explorar Resultados</a></li>
+                    <li><a href="#acerca" class="tab-link" data-tab="acerca">Acerca de Minerva</a></li>
+                </ul>
+            </nav>
+        </header>
 
-                    <label for="department-select" style="display:none;">2. Seleccione un Departamento</label>
-                    <select id="department-select" aria-label="Seleccionar Departamento" required style="display:none;"></select>
-                    
-                    <div id="school-controls" style="display: none;">
-                        <label for="school-search">3. Encuentre un Colegio</label>
-                        <input type="search" id="school-search" placeholder="Buscar por nombre...">
-                        <label for="top-n-select">Mostrar Top:</label>
-                        <select id="top-n-select">
-                            <option value="0">Todos</option>
-                            <option value="20">20</option>
-                            <option value="50">50</option>
-                            <option value="100">100</option>
-                            <option value="500">500</option>
-                        </select>
-                        <div id="school-list-container" class="overflow-auto">
-                            <small>Seleccione un periodo y departamento.</small>
+        <div id="explorar" class="tab-content active container">
+            <main>
+                <aside>
+                    <article id="initial-loader" aria-busy="true">Cargando periodos disponibles...</article>
+                    <div id="controls-container" style="display:none;">
+                        <label for="period-select">1. Seleccione un Periodo</label>
+                        <select id="period-select" aria-label="Seleccionar Periodo" required></select>
+
+                        <label for="department-select" style="display:none;">2. Seleccione un Departamento</label>
+                        <select id="department-select" aria-label="Seleccionar Departamento" required style="display:none;"></select>
+                        
+                        <div id="school-controls" style="display: none;">
+                            <label for="school-search">3. Encuentre un Colegio</label>
+                            <input type="search" id="school-search" placeholder="Buscar por nombre...">
+                            <label for="top-n-select">Mostrar Top:</label>
+                            <select id="top-n-select">
+                                <option value="0">Todos</option>
+                                <option value="20">20</option>
+                                <option value="50">50</option>
+                                <option value="100">100</option>
+                                <option value="500">500</option>
+                            </select>
+                            <div id="school-list-container" class="overflow-auto">
+                                <small>Seleccione un periodo y departamento.</small>
+                            </div>
                         </div>
                     </div>
-                </div>
-            </aside>
+                </aside>
 
-            <section id="results-container">
-                <h3 id="school-name-header">Resultados del Colegio</h3>
-                <article id="loader" aria-busy="true" style="display: none;"></article>
-                <div id="results-content">
-                    <p>Seleccione un colegio de la lista para ver los detalles.</p>
-                </div>
-            </section>
-        </main>
-    </div>
+                <section id="results-container">
+                    <h3 id="school-name-header">Resultados del Colegio</h3>
+                    <article id="loader" aria-busy="true" style="display: none;"></article>
+                    <div id="results-content">
+                        <p>Seleccione un colegio de la lista para ver los detalles.</p>
+                    </div>
+                </section>
+            </main>
+        </div>
 
-    <div id="acerca" class="tab-content container"> 
-        <article>
-            <hgroup>
-                <h3>Acerca de Minerva Explorador de ICFES</h3>
-                <h4>Una Herramienta para el Análisis de Datos Educativos en Colombia</h4>
-            </hgroup>
+        <div id="acerca" class="tab-content container"> 
+            <article>
+                <hgroup>
+                    <h3>Acerca de Minerva Explorador de ICFES</h3>
+                    <h4>Una Herramienta para el Análisis de Datos Educativos en Colombia</h4>
+                </hgroup>
 
-            <p>
-                El Instituto Colombiano para la Evaluación de la Educación (ICFES) publica los resultados de las pruebas Saber 11 como datos abiertos, un recurso de inmenso valor para la transparencia. Sin embargo, acceder a las conclusiones que estos datos ofrecen no es una tarea sencilla. La información en su estado original se distribuye en archivos de texto masivos (microdatos) con cientos de miles de registros, que son difíciles de manejar y analizar sin software especializado y conocimientos técnicos.
-            </p>
-            <p>
-                Para un directivo, docente o padre de familia, la tarea de descargar estos archivos, filtrar la información de un colegio específico y realizar cálculos para obtener promedios o tendencias se convierte en un obstáculo significativo. <strong>Minerva nace precisamente para eliminar esa barrera.</strong>
-            </p>
-            <h5>Nuestra Misión</h5>
-            <p>Minerva Explorador de ICFES es una herramienta independiente creada con el objetivo de hacer que los datos públicos de las pruebas Saber 11 sean más accesibles, comprensibles y útiles. La misión de este proyecto es ofrecer a directivos, docentes, padres de familia y estudiantes una plataforma clara y potente para explorar y analizar el desempeño académico, fomentando decisiones informadas y una mejor comprensión del panorama educativo.</p>
-            
-            <h5>¿Qué Información Encontrará al Analizar un Colegio?</h5>
-            <p>Al seleccionar un periodo, departamento y colegio, Minerva genera un reporte completo que incluye los siguientes análisis clave:</p>
-            <ul>
-                <li><strong>Análisis Comparativo de Promedios:</strong> Comparamos el puntaje promedio del colegio (global y por materia) con los promedios del departamento y del país (benchmarks), para que pueda ver el desempeño en un contexto amplio.</li>
-                <li><strong>Distribución por Niveles de Desempeño:</strong> Mostramos cuántos estudiantes se ubican en cada nivel (de 1 a 4, y de A- a B+ para inglés). Esto le permite evaluar la distribución de la calidad más allá del simple promedio.</li>
-                <li><strong>Evolución Histórica:</strong> Una gráfica que muestra la tendencia del puntaje global promedio del colegio a lo largo de los últimos años (comparando periodos equivalentes, ej. 2024-1 vs 2023-1), ideal para seguir el progreso en el tiempo.</li>
-                <li><strong>Distribución de Puntajes:</strong> Un histograma que visualiza cómo se agrupan los puntajes de los estudiantes, revelando si los resultados son consistentes, dispersos o se concentran en rangos específicos.</li>
-                <li><strong>Lista Detallada de Estudiantes:</strong> Un listado de los resultados individuales (anónimos) de los estudiantes, ordenados por puntaje, que incluye su percentil global, género y nacionalidad, tal como se encuentra en los datos públicos del ICFES.</li>
-            </ul>
+                <p>
+                    El Instituto Colombiano para la Evaluación de la Educación (ICFES) publica los resultados de las pruebas Saber 11 como datos abiertos, un recurso de inmenso valor para la transparencia. Sin embargo, acceder a las conclusiones que estos datos ofrecen no es una tarea sencilla. La información en su estado original se distribuye en archivos de texto masivos (microdatos) con cientos de miles de registros, que son difíciles de manejar y analizar sin software especializado y conocimientos técnicos.
+                </p>
+                <p>
+                    Para un directivo, docente o padre de familia, la tarea de descargar estos archivos, filtrar la información de un colegio específico y realizar cálculos para obtener promedios o tendencias se convierte en un obstáculo significativo. <strong>Minerva nace precisamente para eliminar esa barrera.</strong>
+                </p>
+                
+                <h5>Nuestra Misión</h5>
+                <p>Minerva Explorador de ICFES es una herramienta independiente creada con el objetivo de hacer que los datos públicos de las pruebas Saber 11 sean más accesibles, comprensibles y útiles. La misión de este proyecto es ofrecer a directivos, docentes, padres de familia y estudiantes una plataforma clara y potente para explorar y analizar el desempeño académico, fomentando decisiones informadas y una mejor comprensión del panorama educativo.</p>
+                
+                <h5>¿Qué Información Encontrará al Analizar un Colegio?</h5>
+                <p>Al seleccionar un periodo, departamento y colegio, Minerva genera un reporte completo que incluye los siguientes análisis clave:</p>
+                <ul>
+                    <li><strong>Análisis Comparativo de Promedios:</strong> Comparamos el puntaje promedio del colegio (global y por materia) con los promedios del departamento y del país (benchmarks), para que pueda ver el desempeño en un contexto amplio.</li>
+                    <li><strong>Distribución por Niveles de Desempeño:</strong> Mostramos cuántos estudiantes se ubican en cada nivel (de 1 a 4, y de A- a B+ para inglés). Esto le permite evaluar la distribución de la calidad más allá del simple promedio.</li>
+                    <li><strong>Evolución Histórica:</strong> Una gráfica que muestra la tendencia del puntaje global promedio del colegio a lo largo de los últimos años (comparando periodos equivalentes, ej. 2024-1 vs 2023-1), ideal para seguir el progreso en el tiempo.</li>
+                    <li><strong>Distribución de Puntajes:</strong> Un histograma que visualiza cómo se agrupan los puntajes de los estudiantes, revelando si los resultados son consistentes, dispersos o se concentran en rangos específicos.</li>
+                    <li><strong>Lista Detallada de Estudiantes:</strong> Un listado de los resultados individuales (anónimos) de los estudiantes, ordenados por puntaje, que incluye su percentil global, género y nacionalidad, tal como se encuentra en los datos públicos del ICFES.</li>
+                </ul>
 
-            <h5>Transparencia y Datos</h5>
-            <p>Toda la información presentada se procesa a partir de los microdatos abiertos y anonimizados que el ICFES publica oficialmente para cada periodo. Para garantizar la precisión, aplicamos un riguroso proceso de limpieza y normalización, identificando cada colegio de forma única por su nombre, municipio, naturaleza (Oficial/No Oficial) y calendario.</p>
+                <h5>¿Cómo Funciona Minerva? (La Pila Tecnológica)</h5>
+                <p>Para los interesados en los detalles técnicos, Minerva está construida como una aplicación web moderna que sigue una arquitectura cliente-servidor. A continuación, se detalla el rol de cada componente:</p>
+                <ul>
+                    <li>
+                        <strong>El Backend (Python, Flask y SQLite):</strong> Es el motor de la aplicación, invisible para el usuario final pero encargado de todo el trabajo pesado.
+                        <ul>
+                            <li><strong>Procesamiento Inicial (Script <code>create_database.py</code>):</strong> Antes de que la web esté en línea, un script de Python lee los archivos de texto crudos del ICFES. Realiza la limpieza, normalización (ej. unificar "BOGOTA D.C." y "BOGOTA"), y pre-calcula todos los promedios (benchmarks) nacionales y departamentales.</li>
+                            <li><strong>Base de Datos (SQLite):</strong> Toda esta información procesada se almacena en una base de datos SQLite. Se eligió esta tecnología por ser extremadamente eficiente, rápida y portable, ideal para manejar grandes volúmenes de datos en un entorno de hosting económico como PythonAnywhere.</li>
+                            <li><strong>API (Flask):</strong> Un micro-framework web llamado Flask expone los datos a través de una API. Cuando el usuario hace una selección, el frontend consulta esta API, y Flask se encarga de buscar en la base de datos y devolver únicamente la información solicitada en formato JSON.</li>
+                        </ul>
+                    </li>
+                    <li>
+                        <strong>El Frontend (HTML, CSS y JavaScript):</strong> Es todo lo que usted ve e interactúa en su navegador.
+                        <ul>
+                            <li><strong>HTML:</strong> Proporciona la estructura de la página: los títulos, las listas, las tablas y los contenedores.</li>
+                            <li><strong>CSS (Pico.css):</strong> Se encarga de todo el estilo visual. Utilizamos el framework ligero Pico.css para asegurar un diseño limpio, moderno y adaptable a móviles y escritorio.</li>
+                            <li><strong>JavaScript:</strong> Es el responsable de la interactividad. Se ejecuta en su navegador para comunicarse con el backend. Cuando usted selecciona un periodo, JavaScript solicita la lista de departamentos a la API de Flask y actualiza el menú desplegable. Al elegir un colegio, obtiene los datos y utiliza la librería <strong>Chart.js</strong> para dibujar las gráficas que ve en pantalla.</li>
+                        </ul>
+                    </li>
+                </ul>
+                <p>En resumen, Python y SQLite realizan el trabajo pesado de preparación de datos una sola vez, y Flask los sirve eficientemente a través de una API. El código JavaScript de su navegador consume estos datos para crear una experiencia de usuario rápida e interactiva, permitiéndole explorar estos complejos datos de manera sencilla.</p>
 
-            <hr>
+                <hr>
 
-            <h5>Contacto, Sugerencias y Análisis Avanzado</h5>
-            <p>Minerva es un proyecto en constante evolución. Si tiene ideas para nuevas funcionalidades, encuentra alguna inconsistencia en los datos o simplemente quiere dar su opinión, su feedback es fundamental para mejorar esta herramienta.</p>
-            <p><strong>Para directivos y administradores escolares:</strong> Si desea explorar la posibilidad de generar reportes más detallados, acceder a análisis granulares específicos para su institución o discutir las métricas presentadas, por favor, no dude en escribir.</p>
-            <p>Puede contactar al desarrollador, Santiago Acuña G., a través del siguiente correo electrónico (reemplace los elementos entre corchetes): <br><strong>minervaadmin[punto]twerp291[arroba]passmail.net</strong></p>
+                <h5>Contacto, Sugerencias y Análisis Avanzado</h5>
+                <p>Minerva es un proyecto en constante evolución. Si tiene ideas para nuevas funcionalidades, encuentra alguna inconsistencia en los datos o simplemente quiere dar su opinión, su feedback es fundamental para mejorar esta herramienta.</p>
+                <p><strong>Para directivos y administradores escolares:</strong> Si desea explorar la posibilidad de generar reportes más detallados, acceder a análisis granulares específicos para su institución o discutir las métricas presentadas, por favor, no dude en escribir.</p>
+                <p>Puede contactar al desarrollador, Santiago Acuña G., a través del siguiente correo electrónico (reemplace los elementos entre corchetes): <br><strong>santiago.acuna.g [at] gmail [dot] com</strong></p>
 
-        </article>
-    </div>
-    
-    <footer class="container" style="margin-top: 2rem; padding-top: 1rem; border-top: 1px solid var(--pico-muted-border-color); text-align: center;">
-        <small>
-            © <span id="copyright-year"></span> Santiago Acuña G. | Minerva Explorador de ICFES
-            | Datos actualizados por última vez el: <span id="last-updated-placeholder">Cargando...</span>
-        </small>
-    </footer>
-
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+            </article>
+        </div>
+        <footer class="container" style="margin-top: 2rem; padding-top: 1rem; border-top: 1px solid var(--pico-muted-border-color); text-align: center;">
+            <small>
+                © <span id="copyright-year"></span> Santiago Acuña G. | Minerva Explorador de ICFES
+                | Datos actualizados por última vez el: <span id="last-updated-placeholder">Cargando...</span>
+            </small>
+        </footer>
+    </div> <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
 </body>
 </html>
