@@ -100,17 +100,12 @@ document.addEventListener('DOMContentLoaded', () => {
         copyrightYearSpan.textContent = new Date().getFullYear();
     }
     
-    // Fetch and display last updated date
     const fetchAndUpdateDate = async () => {
-        // This is now handled by Flask template rendering {{ last_updated_date }}
-        // but we ensure the placeholder is updated if it was 'Cargando...'
         if (lastUpdatedPlaceholder && lastUpdatedPlaceholder.textContent === "Cargando...") {
-             // The value is injected by Flask into index.html, so this might not be needed
-             // if Flask directly renders it. This is a fallback if the template variable isn't set for some reason.
              lastUpdatedPlaceholder.textContent = document.body.dataset.lastUpdatedDate || "No disponible";
         }
     };
-    fetchAndUpdateDate(); // Call it once
+    fetchAndUpdateDate();
 
 
     const fetchData = async (url) => {
@@ -214,8 +209,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const canvasContainer = document.getElementById('histogram-chart-container');
         const canvas = document.getElementById('histogram-chart');
         if (!canvas || !canvasContainer) return;
-        // Ensure canvas is visible and has dimensions before rendering
-        canvasContainer.style.height = '280px'; // Enforce height via JS if CSS doesn't take always
+        canvasContainer.style.height = '280px';
         const ctx = canvas.getContext('2d');
         
         const bins = {}; const labels = [];
@@ -241,7 +235,6 @@ document.addEventListener('DOMContentLoaded', () => {
         canvasContainer.style.height = '280px';
         const ctx = canvas.getContext('2d');
 
-        // Data for chart should be chronological (oldest to newest)
         const chartData = historicalDataOriginalOrder.filter(d => d.media > 0).sort((a, b) => {
             const yearA = parseInt(a.periodo.substring(0, 4));
             const periodSuffixA = parseInt(a.periodo.substring(5));
@@ -277,7 +270,12 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const departments = await fetchData(`/api/departments/${periodo}`);
             departmentSelect.innerHTML = '<option value="" selected>Seleccione un departamento</option>';
-            departments.forEach(dept => { const option = document.createElement('option'); option.value = dept; option.textContent = dept; departmentSelect.appendChild(option); });
+            departments.forEach(dept => { 
+                const option = document.createElement('option'); 
+                option.value = dept; 
+                option.textContent = dept;
+                departmentSelect.appendChild(option); 
+            });
             if(departmentSelectLabel) departmentSelectLabel.style.display = 'block'; 
             departmentSelect.style.display = 'block';
         } catch (error) { departmentSelect.innerHTML = '<option value="">Error al cargar deptos.</option>'; }
@@ -339,14 +337,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const handleTabClick = (event) => {
         event.preventDefault();
         tabs.forEach(tab => tab.classList.remove('active'));
-        tabContents.forEach(content => content.classList.remove('active')); // Hide all
+        tabContents.forEach(content => content.classList.remove('active'));
         
-        const clickedTabLink = event.currentTarget; // Use currentTarget
+        const clickedTabLink = event.currentTarget;
         clickedTabLink.classList.add('active');
         
         const activeTabContentId = clickedTabLink.dataset.tab;
         const activeTabContent = document.getElementById(activeTabContentId);
-        if (activeTabContent) activeTabContent.classList.add('active'); // Show only the one that should be active
+        if (activeTabContent) activeTabContent.classList.add('active');
         
         window.location.hash = activeTabContentId;
     };
@@ -360,12 +358,14 @@ document.addEventListener('DOMContentLoaded', () => {
             if(controlsContainer) controlsContainer.style.display = 'block';
             periodSelect.innerHTML = '<option value="" selected>Seleccione un periodo</option>';
             
+            // --- THIS IS THE CORRECTED PART ---
             periods.forEach(period => { 
                 const option = document.createElement('option'); 
                 option.value = period.value;
-                option.textContent = period.display;
+                option.textContent = period.display; // Use the 'display' property for visible text
                 periodSelect.appendChild(option); 
             });
+            // --- END OF CORRECTION ---
             
             const lastUpdatedFromHTML = document.body.dataset.lastUpdatedDate;
             if (lastUpdatedPlaceholder) lastUpdatedPlaceholder.textContent = lastUpdatedFromHTML || "No disponible";
@@ -381,7 +381,6 @@ document.addEventListener('DOMContentLoaded', () => {
         schoolListContainer.addEventListener('click', handleSchoolClick);
         tabs.forEach(tab => tab.addEventListener('click', handleTabClick));
         
-        // Set initial tab based on hash or default to 'explorar'
         const currentHash = window.location.hash.substring(1);
         const targetTab = currentHash || 'explorar';
         
@@ -393,7 +392,7 @@ document.addEventListener('DOMContentLoaded', () => {
             activeTabLink.classList.add('active');
             const activeContent = document.getElementById(targetTab);
             if (activeContent) activeContent.classList.add('active');
-        } else { // Default to explorar if hash is invalid or empty
+        } else {
             const defaultTabLink = document.querySelector('.tab-link[data-tab="explorar"]');
             if (defaultTabLink) defaultTabLink.classList.add('active');
             const defaultTabContent = document.getElementById('explorar');
