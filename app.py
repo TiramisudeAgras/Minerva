@@ -19,7 +19,7 @@ CLOUDFLARE_TURNSTILE_SECRET_KEY = None
 SECRET_KEY_FILE_PATH = '/home/Chachalingo/mysite/crypto/.config_secrets.ini'
 
 try:
-    # Si usaste formato INI (Option B)
+    # Usar Sistema Ini!
     config = configparser.ConfigParser()
     if os.path.exists(SECRET_KEY_FILE_PATH) and os.path.getsize(SECRET_KEY_FILE_PATH) > 0:
         config.read(SECRET_KEY_FILE_PATH)
