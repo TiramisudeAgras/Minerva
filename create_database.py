@@ -146,12 +146,18 @@ def create_indexes(conn):
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_school_stats_avg_global ON school_statistics(periodo, avg_punt_global DESC)")
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_school_stats_dept_avg_global ON school_statistics(periodo, cole_depto_ubicacion_norm, avg_punt_global DESC)")
 
-
     # Índice para school_performance_levels (PK ya tiene índice, pero uno específico para lookups puede ayudar)
     cursor.execute("""CREATE INDEX IF NOT EXISTS idx_school_perf_levels_lookup ON school_performance_levels(
         periodo, cole_depto_ubicacion_norm, cole_nombre_establecimiento, materia
     )""")
 
+    # NUEVO: Índices para búsqueda eficiente por nombre de colegio
+    cursor.execute("""CREATE INDEX IF NOT EXISTS idx_school_name_search 
+    ON school_statistics(periodo, cole_depto_ubicacion_norm, cole_nombre_establecimiento)""")
+    
+    # NUEVO: Este índice ayuda con el ORDER BY en las consultas de búsqueda
+    cursor.execute("""CREATE INDEX IF NOT EXISTS idx_school_search_with_avg 
+    ON school_statistics(periodo, cole_depto_ubicacion_norm, cole_nombre_establecimiento, avg_punt_global DESC)""")
 
     conn.commit()
     print("¡Índices creados exitosamente! Las consultas ahora serán MUCHO más rápidas.")

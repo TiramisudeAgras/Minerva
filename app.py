@@ -172,32 +172,16 @@ def get_departments_for_period(periodo):
     conn.close()
     return jsonify([r['cole_depto_ubicacion_norm'] for r in data])
 
-@app.route('/api/schools/<periodo>/<department_name>')
 def get_schools_for_department_period(periodo, department_name):
-    # El parámetro 'q' para búsqueda ya no se usa aquí, la búsqueda es frontend
-    # NUEVO: Agregar paginación para evitar timeouts con departamentos grandes
-    
     # Decodificar el nombre del departamento por si viene URL-encoded
     department_name = unquote(department_name)
     
-    # NUEVO: Obtener parámetros de paginación
-    page = request.args.get('page', 1, type=int)
-    per_page = request.args.get('per_page', 500, type=int)  # Limitar a 500 escuelas por página
-    
-    # Limitar per_page para evitar abusos
-    per_page = min(per_page, 1000)
+    # NUEVO: Obtener parámetro de búsqueda
+    search_query = request.args.get('q', '').strip()
+    limit = request.args.get('limit', 50, type=int)
+    limit = min(limit, 200)  # Máximo 200 resultados
     
     conn = get_db_connection()
-    
-    # NUEVO: Primero contar el total de escuelas
-    count_query = """
-        SELECT COUNT(*) as total
-        FROM school_statistics
-        WHERE periodo = ? AND cole_depto_ubicacion_norm = ?
-              AND cole_nombre_establecimiento IS NOT NULL AND TRIM(cole_nombre_establecimiento) != ''
-              AND avg_punt_global IS NOT NULL
-    """
-    total_count = conn.execute(count_query, (periodo, department_name)).fetchone()['total']
     
     select_cols = """
         ss.cole_nombre_establecimiento, ss.cole_mcpio_ubicacion, ss.cole_naturaleza, 
@@ -220,18 +204,55 @@ def get_schools_for_department_period(periodo, department_name):
                AND ss.cole_depto_ubicacion_norm = sr_distinct.cole_depto_ubicacion_norm
     """
     
-    # NUEVO: Agregar LIMIT y OFFSET para paginación
-    offset = (page - 1) * per_page
-    query_sql = f"""
-        SELECT {select_cols} FROM school_statistics ss {join_for_genero}
-        WHERE ss.periodo = ? AND ss.cole_depto_ubicacion_norm = ?
-              AND ss.cole_nombre_establecimiento IS NOT NULL AND TRIM(ss.cole_nombre_establecimiento) != ''
-              AND ss.avg_punt_global IS NOT NULL 
-        ORDER BY ss.avg_punt_global DESC
-        LIMIT ? OFFSET ?
-    """
+    # NUEVO: Agregar condición de búsqueda si existe
+    if search_query:
+        # Búsqueda con LIKE para encontrar coincidencias parciales
+        query_sql = f"""
+            SELECT {select_cols} FROM school_statistics ss {join_for_genero}
+            WHERE ss.periodo = ? AND ss.cole_depto_ubicacion_norm = ?
+                  AND ss.cole_nombre_establecimiento IS NOT NULL AND TRIM(ss.cole_nombre_establecimiento) != ''
+                  AND ss.avg_punt_global IS NOT NULL 
+                  AND LOWER(ss.cole_nombre_establecimiento) LIKE LOWER(?)
+            ORDER BY 
+                CASE 
+                    WHEN LOWER(ss.cole_nombre_establecimiento) = LOWER(?) THEN 0
+                    WHEN LOWER(ss.cole_nombre_establecimiento) LIKE LOWER(?) THEN 1
+                    ELSE 2
+                END,
+                ss.avg_punt_global DESC
+            LIMIT ?
+        """
+        # Parámetros para la búsqueda
+        search_pattern = f'%{search_query}%'
+        search_start_pattern = f'{search_query}%'
+        params = (periodo, department_name, search_pattern, search_query, search_start_pattern, limit)
+    else:
+        # Sin búsqueda, devolver top escuelas por promedio
+        query_sql = f"""
+            SELECT {select_cols} FROM school_statistics ss {join_for_genero}
+            WHERE ss.periodo = ? AND ss.cole_depto_ubicacion_norm = ?
+                  AND ss.cole_nombre_establecimiento IS NOT NULL AND TRIM(ss.cole_nombre_establecimiento) != ''
+                  AND ss.avg_punt_global IS NOT NULL 
+            ORDER BY ss.avg_punt_global DESC
+            LIMIT ?
+        """
+        params = (periodo, department_name, limit)
     
-    all_schools_rows = conn.execute(query_sql, (periodo, department_name, per_page, offset)).fetchall()
+    all_schools_rows = conn.execute(query_sql, params).fetchall()
+    
+    # NUEVO: Si hay búsqueda, también contar total de resultados
+    total_results = len(all_schools_rows)
+    if search_query and total_results == limit:
+        count_query = """
+            SELECT COUNT(*) as total FROM school_statistics
+            WHERE periodo = ? AND cole_depto_ubicacion_norm = ?
+                  AND cole_nombre_establecimiento IS NOT NULL AND TRIM(cole_nombre_establecimiento) != ''
+                  AND avg_punt_global IS NOT NULL 
+                  AND LOWER(cole_nombre_establecimiento) LIKE LOWER(?)
+        """
+        total_count = conn.execute(count_query, (periodo, department_name, search_pattern)).fetchone()
+        total_results = total_count['total']
+    
     conn.close()
 
     schools_list = []
@@ -252,23 +273,20 @@ def get_schools_for_department_period(periodo, department_name):
         display_name = f"{display_parts[0]} ({' - '.join(display_name_parts)})"
         schools_list.append({
             'id': school_id_str, 'name': display_name,
-            'raw_name': row.get('cole_nombre_establecimiento', ''), # Importante para la búsqueda en frontend
+            'raw_name': row.get('cole_nombre_establecimiento', ''),
             'mean': row.get('promedio_global', 0) if row.get('promedio_global') is not None else 0,
             'count': row.get('num_estudiantes', 0),
             'rank_departmental': row.get('rank_departmental'),
             'rank_national': row.get('rank_national')
         })
     
-    # NUEVO: Devolver información de paginación
     return jsonify({
         'schools': schools_list,
-        'pagination': {
-            'total': total_count,
-            'page': page,
-            'per_page': per_page,
-            'total_pages': (total_count + per_page - 1) // per_page
-        }
+        'search_query': search_query,
+        'total_results': total_results,
+        'displayed_results': len(schools_list)
     })
+
 
 
 @app.route('/api/school_details/<periodo>/<department_name_param>/<path:school_id_str>')
@@ -379,6 +397,32 @@ def get_school_details(periodo, department_name_param, school_id_str):
         import traceback
         traceback.print_exc()
         return jsonify({"error": f"Error interno del servidor: {str(e)}"}), 500
+
+@app.route('/api/schools/suggestions/<periodo>/<department_name>')
+def get_school_suggestions(periodo, department_name):
+    department_name = unquote(department_name)
+    search_query = request.args.get('q', '').strip()
+    
+    if len(search_query) < 2:  # Mínimo 2 caracteres para buscar
+        return jsonify([])
+    
+    conn = get_db_connection()
+    
+    # Búsqueda rápida solo de nombres
+    query = """
+        SELECT DISTINCT cole_nombre_establecimiento
+        FROM school_statistics
+        WHERE periodo = ? AND cole_depto_ubicacion_norm = ?
+              AND cole_nombre_establecimiento IS NOT NULL 
+              AND LOWER(cole_nombre_establecimiento) LIKE LOWER(?)
+        ORDER BY cole_nombre_establecimiento
+        LIMIT 10
+    """
+    
+    results = conn.execute(query, (periodo, department_name, f'{search_query}%')).fetchall()
+    conn.close()
+    
+    return jsonify([r['cole_nombre_establecimiento'] for r in results])
 
 
 if __name__ == '__main__':

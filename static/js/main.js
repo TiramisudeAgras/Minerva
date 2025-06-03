@@ -111,28 +111,45 @@ const fetchData = async (url) => {
     }
 };
 
-const renderSchoolList = (schoolsToDisplay) => { /* Sin cambios */
-    schoolListContainer.innerHTML = '';
+const renderSchoolList = (schoolsToDisplay, append = false) => {
+    if (!append) {
+        schoolListContainer.innerHTML = '';
+    }
+    
     if (!schoolsToDisplay || schoolsToDisplay.length === 0) {
-        const searchTerm = schoolSearch.value.trim();
-        if (searchTerm) {
-            schoolListContainer.innerHTML = '<p style="padding:1rem; text-align:center;"><small>No se encontraron colegios que coincidan con tu búsqueda.</small></p>';
-        } else {
-            schoolListContainer.innerHTML = '<p style="padding:1rem; text-align:center;"><small>No hay colegios para mostrar en este departamento o para los filtros aplicados.</small></p>';
+        if (!append) {
+            const searchTerm = schoolSearch.value.trim();
+            if (searchTerm) {
+                schoolListContainer.innerHTML = '<p style="padding:1rem; text-align:center;"><small>No se encontraron colegios que coincidan con tu búsqueda.</small></p>';
+            } else {
+                schoolListContainer.innerHTML = '<p style="padding:1rem; text-align:center;"><small>No hay colegios para mostrar.</small></p>';
+            }
         }
         return;
     }
+    
+    // Si es append, crear un contenedor para los nuevos elementos
+    const container = append ? document.createElement('div') : schoolListContainer;
+    
     schoolsToDisplay.forEach(school => {
         const schoolItem = document.createElement('a');
-        schoolItem.href = '#results-container'; schoolItem.className = 'school-list-item';
-        schoolItem.dataset.id = school.id; schoolItem.dataset.displayName = school.name;
+        schoolItem.href = '#results-container'; 
+        schoolItem.className = 'school-list-item';
+        schoolItem.dataset.id = school.id; 
+        schoolItem.dataset.displayName = school.name;
+        
         let rankDisplay = '';
         if (school.rank_departmental != null && school.rank_national != null) {
             rankDisplay = `<span class="rank-slashline"> (Dep: ${school.rank_departmental} / Nac: ${school.rank_national})</span>`;
         }
+        
         schoolItem.innerHTML = `<h6>${school.name}${rankDisplay}</h6><p>Promedio Global: <strong>${school.mean.toFixed(2)}</strong> (${school.count} estudiantes)</p>`;
-        schoolListContainer.appendChild(schoolItem);
+        container.appendChild(schoolItem);
     });
+    
+    if (append) {
+        schoolListContainer.appendChild(container);
+    }
 };
 
 const displayInitialSchoolList = () => {
@@ -195,142 +212,86 @@ const handlePeriodChange = async (event) => {
 };
 
 // MODIFICADO: `loadSchoolList` para manejar el estado de carga del input de búsqueda
-const loadSchoolList = async () => {
+const loadSchoolList = async (searchQuery = '') => {
     const department = departmentSelect.value;
     const periodo = periodSelect.value;
     
-    fuseInstance = null; // Resetear instancia de Fuse.js
-    allSchoolsInPeriodDepartment = []; // Limpiar lista anterior
-
-    // Deshabilitar input de búsqueda y mostrar mensaje de carga específico
-    if (schoolSearch) {
-        schoolSearch.disabled = true;
-        schoolSearch.placeholder = "Cargando colegios...";
-    }
-    schoolListContainer.innerHTML = `<article aria-busy="true" style="text-align:center; padding:1rem;">Cargando colegios del departamento de ${department || 'seleccionado'}...</article>`;
-    resultsContainer.style.display = 'none';
-
     if (!department || !periodo) {
         if(schoolControls) schoolControls.style.display = 'none';
         schoolListContainer.innerHTML = '<small>Seleccione periodo y departamento primero.</small>';
-        if (schoolSearch) schoolSearch.placeholder = "Seleccione periodo y depto...";
+        if (schoolSearch) {
+            schoolSearch.disabled = true;
+            schoolSearch.placeholder = "Seleccione periodo y depto...";
+        }
         return;
     }
-    if(schoolControls) schoolControls.style.display = 'block';
-
-    // Asegurar que el departamento esté correctamente codificado
-    const encodedDepartment = encodeURIComponent(department);
     
+    if(schoolControls) schoolControls.style.display = 'block';
+    
+    // NUEVO: No deshabilitar la búsqueda durante la carga
+    if (schoolSearch && !searchQuery) {
+        schoolSearch.disabled = false;
+        schoolSearch.placeholder = "Buscar colegio...";
+    }
+    
+    // Mostrar indicador de carga
+    if (!searchQuery) {
+        schoolListContainer.innerHTML = `<article aria-busy="true" style="text-align:center; padding:1rem;">Cargando top colegios...</article>`;
+    }
+    
+    resultsContainer.style.display = 'none';
+
+    const encodedDepartment = encodeURIComponent(department);
+    let url = `/api/schools/${periodo}/${encodedDepartment}?limit=50`;
+    
+    if (searchQuery) {
+        url += `&q=${encodeURIComponent(searchQuery)}`;
+    }
+
     try {
-        // NUEVO: Cargar escuelas en páginas para evitar timeouts
-        let allSchools = [];
-        let page = 1;
-        let hasMore = true;
+        const response = await fetchData(url);
         
-        // Para departamentos grandes como Bogotá, cargar en chunks
-        while (hasMore) {
-            const url = `/api/schools/${periodo}/${encodedDepartment}?page=${page}&per_page=500`;
-            
-            try {
-                const response = await fetchData(url);
-                
-                // Manejar respuesta paginada o respuesta antigua (array directo)
-                if (Array.isArray(response)) {
-                    // Respuesta antigua sin paginación
-                    allSchools = response;
-                    hasMore = false;
-                } else if (response.schools) {
-                    // Nueva respuesta con paginación
-                    allSchools = allSchools.concat(response.schools);
-                    hasMore = page < response.pagination.total_pages;
-                    page++;
-                    
-                    // Actualizar mensaje de progreso
-                    if (hasMore) {
-                        schoolListContainer.innerHTML = `<article aria-busy="true" style="text-align:center; padding:1rem;">Cargando colegios... ${allSchools.length} de ${response.pagination.total}</article>`;
-                    }
-                } else {
-                    console.error("Formato de respuesta inesperado:", response);
-                    hasMore = false;
-                }
-            } catch (error) {
-                // Si hay timeout en una página específica, continuar con lo que tenemos
-                console.error(`Error cargando página ${page}:`, error);
-                hasMore = false;
-            }
-        }
+        // Manejar la nueva respuesta
+        let schools = response.schools || response; // Compatibilidad con formato anterior
         
-        allSchoolsInPeriodDepartment = allSchools;
-
-        // Debug: Verificar si las escuelas tienen raw_name
-        if (allSchools.length > 0 && !allSchools[0].raw_name) {
-            console.warn("Schools don't have raw_name field, search might not work properly");
-        }
-
-        if (typeof Fuse === 'undefined') {
-            console.error("Fuse.js no está cargado. La búsqueda inteligente no funcionará.");
-            if (schoolSearch) {
-                schoolSearch.placeholder = "Búsqueda no disponible";
-            }
+        if (searchQuery && response.total_results > response.displayed_results) {
+            // Mostrar mensaje si hay más resultados
+            const moreResults = response.total_results - response.displayed_results;
+            schoolListContainer.innerHTML = `<p style="padding:0.5rem; text-align:center; background-color: var(--pico-card-background-color);"><small>Mostrando ${response.displayed_results} de ${response.total_results} resultados. Refine su búsqueda para ver más.</small></p>`;
+            renderSchoolList(schools, true); // true = append to existing content
         } else {
-            const fuseOptions = {
-                keys: ['raw_name', 'name'], // Buscar en ambos campos como fallback
-                includeScore: true, 
-                threshold: 0.4, 
-                minMatchCharLength: 2,
-            };
-            fuseInstance = new Fuse(allSchoolsInPeriodDepartment, fuseOptions);
-            console.log("Fuse.js initialized with", allSchoolsInPeriodDepartment.length, "schools");
+            renderSchoolList(schools);
         }
         
-        displayInitialSchoolList(); // Mostrar el Top 50 inicial
-        
-        // Habilitar input de búsqueda después de cargar
-        if (schoolSearch) {
-            schoolSearch.disabled = false;
-            schoolSearch.placeholder = "Buscar por nombre...";
-        }
-
     } catch (error) {
         console.error("Error loading schools:", error);
         schoolListContainer.innerHTML = '<small>Error al cargar los colegios. Intente de nuevo.</small>';
-        if (schoolSearch) {
-            schoolSearch.disabled = true;
-            schoolSearch.placeholder = "Error al cargar colegios";
-        }
     }
 };
 
 const handleSchoolSearch = () => {
     clearTimeout(searchDebounceTimer);
     searchDebounceTimer = setTimeout(() => {
-        if (!schoolSearch || schoolSearch.disabled) {
+        if (!schoolSearch || !departmentSelect.value || !periodSelect.value) {
             return;
         }
 
-        const searchTerm = schoolSearch.value.trim().toLowerCase();
+        const searchTerm = schoolSearch.value.trim();
 
         if (!searchTerm) {
-            displayInitialSchoolList();
+            // Si no hay búsqueda, cargar top 50
+            loadSchoolList();
             return;
         }
 
-        if (fuseInstance) {
-            const fuseResults = fuseInstance.search(searchTerm);
-            const filteredSchools = fuseResults.map(result => result.item);
-            renderSchoolList(filteredSchools.slice(0, DEFAULT_DISPLAY_COUNT * 2));
-        } else {
-            console.warn("Fuse.js no disponible, usando búsqueda simple por inclusión.");
-            const filteredSchools = allSchoolsInPeriodDepartment.filter(school => {
-                // Search in both raw_name and name fields
-                const searchInRawName = school.raw_name && school.raw_name.toLowerCase().includes(searchTerm);
-                const searchInName = school.name && school.name.toLowerCase().includes(searchTerm);
-                return searchInRawName || searchInName;
-            });
-            renderSchoolList(filteredSchools.slice(0, DEFAULT_DISPLAY_COUNT * 2));
+        // Si hay al menos 2 caracteres, buscar
+        if (searchTerm.length >= 2) {
+            schoolListContainer.innerHTML = `<article aria-busy="true" style="text-align:center; padding:0.5rem;">Buscando "${searchTerm}"...</article>`;
+            loadSchoolList(searchTerm);
         }
-    }, 300);
+    }, 300); // 300ms debounce
 };
+
 
 const handleSchoolClick = async (event) => {
     event.preventDefault(); 
@@ -382,35 +343,56 @@ const handleTabClick = (event) => { /* Sin cambios */
 };
 
 const initializeApp = async () => {
-    if(initialLoader) initialLoader.style.display = 'block'; if(controlsContainer) controlsContainer.style.display = 'none';
+    if(initialLoader) initialLoader.style.display = 'block'; 
+    if(controlsContainer) controlsContainer.style.display = 'none';
+    
     try {
         const periods = await fetchData('/api/periods');
-        if(initialLoader) initialLoader.style.display = 'none'; if(controlsContainer) controlsContainer.style.display = 'block';
+        if(initialLoader) initialLoader.style.display = 'none'; 
+        if(controlsContainer) controlsContainer.style.display = 'block';
+        
         periodSelect.innerHTML = '<option value="" selected>Seleccione un periodo</option>';
-        periods.forEach(p => { const o=document.createElement('option'); o.value=p.value; o.textContent=p.display; periodSelect.appendChild(o); });
+        periods.forEach(p => { 
+            const o = document.createElement('option'); 
+            o.value = p.value; 
+            o.textContent = p.display; 
+            periodSelect.appendChild(o); 
+        });
+        
         const lastUpd = document.body.dataset.lastUpdatedDate;
-        if (lastUpdatedPlaceholder) lastUpdatedPlaceholder.textContent = lastUpd || "No disponible";
-    } catch (error) { if(initialLoader) initialLoader.innerHTML = 'Error al cargar periodos. Intente recargar.'; }
+        if (typeof lastUpdatedPlaceholder !== 'undefined' && lastUpdatedPlaceholder) {
+            lastUpdatedPlaceholder.textContent = lastUpd || "No disponible";
+        }
+    } catch (error) { 
+        if(initialLoader) initialLoader.innerHTML = 'Error al cargar periodos. Intente recargar.'; 
+    }
 
     periodSelect.addEventListener('change', handlePeriodChange);
+    
     departmentSelect.addEventListener('change', () => {
         schoolSearch.value = '';
-        fuseInstance = null;
-        allSchoolsInPeriodDepartment = [];
-        if (schoolSearch) { // Asegurar que se deshabilite al cambiar depto
-            schoolSearch.disabled = true;
-            schoolSearch.placeholder = "Cargando colegios...";
-        }
-        loadSchoolList();
+        loadSchoolList(); // Cargar top 50 inicial
     });
-    // ELIMINADO: Listener para topNSelect
+    
     schoolSearch.addEventListener('input', handleSchoolSearch);
     schoolListContainer.addEventListener('click', handleSchoolClick);
     tabs.forEach(tab => tab.addEventListener('click', handleTabClick));
 
-    const currentHash = window.location.hash.substring(1); const targetTab = currentHash || 'explorar';
-    tabs.forEach(t=>t.classList.remove('active')); tabContents.forEach(c=>c.classList.remove('active'));
+    // Manejar navegación por hash
+    const currentHash = window.location.hash.substring(1); 
+    const targetTab = currentHash || 'explorar';
+    tabs.forEach(t => t.classList.remove('active')); 
+    tabContents.forEach(c => c.classList.remove('active'));
+    
     const activeLink = document.querySelector(`.tab-link[data-tab="${targetTab}"]`);
-    if(activeLink){activeLink.classList.add('active');const actCont=document.getElementById(targetTab);if(actCont)actCont.classList.add('active');}
-    else{const defLink=document.querySelector('.tab-link[data-tab="explorar"]');if(defLink)defLink.classList.add('active');const defCont=document.getElementById('explorar');if(defCont)defCont.classList.add('active');}
+    if(activeLink) {
+        activeLink.classList.add('active');
+        const actCont = document.getElementById(targetTab);
+        if(actCont) actCont.classList.add('active');
+    } else {
+        const defLink = document.querySelector('.tab-link[data-tab="explorar"]');
+        if(defLink) defLink.classList.add('active');
+        const defCont = document.getElementById('explorar');
+        if(defCont) defCont.classList.add('active');
+    }
 };
