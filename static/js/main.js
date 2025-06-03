@@ -82,21 +82,28 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-const fetchData = async (url) => { /* Sin cambios */
+const fetchData = async (url) => {
     if(mainLoader) mainLoader.style.display = 'block';
     try {
         const response = await fetch(url);
         if (!response.ok) {
             let errorData = { message: `Error HTTP ${response.status} en ${url}.` };
-            try { const jsonError = await response.json(); errorData.message = jsonError.error || errorData.message; }
-            catch (e) { /* Ignorar */ }
+            try { 
+                const jsonError = await response.json(); 
+                errorData.message = jsonError.error || errorData.message; 
+                console.error("Server error response:", jsonError);
+            }
+            catch (e) { 
+                console.error("Could not parse error response as JSON");
+            }
             throw new Error(errorData.message);
         }
         return await response.json();
     } catch (error) {
-        console.error("Error en fetchData:", error.message);
+        console.error("Error in fetchData:", error.message);
+        console.error("Failed URL:", url);
         if(resultsContent && minervaAppContainer && minervaAppContainer.style.display === 'block') {
-            resultsContent.innerHTML = `<p class="error">Error al cargar datos: ${error.message}. Revisa la consola.</p>`;
+            resultsContent.innerHTML = `<p class="error">Error al cargar datos: ${error.message}<br>URL: ${url}<br>Por favor, intente de nuevo o contacte al administrador.</p>`;
         }
         throw error;
     } finally {
@@ -192,10 +199,9 @@ const loadSchoolList = async () => {
     const department = departmentSelect.value;
     const periodo = periodSelect.value;
     
-    fuseInstance = null; // Resetear instancia de Fuse.js
-    allSchoolsInPeriodDepartment = []; // Limpiar lista anterior
+    fuseInstance = null;
+    allSchoolsInPeriodDepartment = [];
 
-    // **NUEVO: Deshabilitar input de búsqueda y mostrar mensaje de carga específico**
     if (schoolSearch) {
         schoolSearch.disabled = true;
         schoolSearch.placeholder = "Cargando colegios...";
@@ -206,41 +212,53 @@ const loadSchoolList = async () => {
     if (!department || !periodo) {
         if(schoolControls) schoolControls.style.display = 'none';
         schoolListContainer.innerHTML = '<small>Seleccione periodo y departamento primero.</small>';
-        if (schoolSearch) schoolSearch.placeholder = "Seleccione periodo y depto..."; // Actualizar placeholder
+        if (schoolSearch) schoolSearch.placeholder = "Seleccione periodo y depto...";
         return;
     }
     if(schoolControls) schoolControls.style.display = 'block';
 
-    let url = `/api/schools/${periodo}/${department}`; // Backend ahora envía todos
+    // Ensure department is properly encoded
+    const encodedDepartment = encodeURIComponent(department);
+    let url = `/api/schools/${periodo}/${encodedDepartment}`;
 
     try {
         const schools = await fetchData(url);
+        
+        // Debug: Check if schools have raw_name
+        if (schools.length > 0 && !schools[0].raw_name) {
+            console.warn("Schools don't have raw_name field, search might not work properly");
+        }
+        
         allSchoolsInPeriodDepartment = schools;
 
         if (typeof Fuse === 'undefined') {
             console.error("Fuse.js no está cargado. La búsqueda inteligente no funcionará.");
             if (schoolSearch) {
-                schoolSearch.placeholder = "Búsqueda no disponible"; // Ocultar o mostrar error
-                // No deshabilitarlo permanentemente aquí, ya que podría cargarse tarde.
+                schoolSearch.placeholder = "Búsqueda no disponible";
             }
         } else {
             const fuseOptions = {
-                keys: ['raw_name'], includeScore: true, threshold: 0.4, minMatchCharLength: 2,
+                keys: ['raw_name', 'name'], // Search in both fields as fallback
+                includeScore: true, 
+                threshold: 0.4, 
+                minMatchCharLength: 2,
             };
             fuseInstance = new Fuse(allSchoolsInPeriodDepartment, fuseOptions);
-            // console.log("Fuse.js inicializado."); // Útil para depurar
+            console.log("Fuse.js initialized with", allSchoolsInPeriodDepartment.length, "schools");
         }
-        displayInitialSchoolList(); // Mostrar el Top 50 inicial
-        // **NUEVO: Habilitar input de búsqueda después de cargar**
+        
+        displayInitialSchoolList();
+        
         if (schoolSearch) {
             schoolSearch.disabled = false;
             schoolSearch.placeholder = "Buscar por nombre...";
         }
 
     } catch (error) {
+        console.error("Error loading schools:", error);
         schoolListContainer.innerHTML = '<small>Error al cargar los colegios. Intente de nuevo.</small>';
         if (schoolSearch) {
-            schoolSearch.disabled = true; // Mantener deshabilitado si hay error
+            schoolSearch.disabled = true;
             schoolSearch.placeholder = "Error al cargar colegios";
         }
     }
@@ -249,10 +267,8 @@ const loadSchoolList = async () => {
 const handleSchoolSearch = () => {
     clearTimeout(searchDebounceTimer);
     searchDebounceTimer = setTimeout(() => {
-        // **NUEVO: Verificar si la búsqueda está habilitada (datos cargados y Fuse listo)**
         if (!schoolSearch || schoolSearch.disabled) {
-            // console.log("Búsqueda no habilitada o datos no cargados.");
-            return; // No hacer nada si la búsqueda no debe estar activa
+            return;
         }
 
         const searchTerm = schoolSearch.value.trim().toLowerCase();
@@ -265,29 +281,62 @@ const handleSchoolSearch = () => {
         if (fuseInstance) {
             const fuseResults = fuseInstance.search(searchTerm);
             const filteredSchools = fuseResults.map(result => result.item);
-            renderSchoolList(filteredSchools.slice(0, DEFAULT_DISPLAY_COUNT * 2)); // Mostrar más resultados si es búsqueda
+            renderSchoolList(filteredSchools.slice(0, DEFAULT_DISPLAY_COUNT * 2));
         } else {
-            // console.warn("Fuse.js no disponible, usando búsqueda simple por inclusión.");
-            const filteredSchools = allSchoolsInPeriodDepartment.filter(school =>
-                school.raw_name.toLowerCase().includes(searchTerm)
-            );
+            console.warn("Fuse.js no disponible, usando búsqueda simple por inclusión.");
+            const filteredSchools = allSchoolsInPeriodDepartment.filter(school => {
+                // Search in both raw_name and name fields
+                const searchInRawName = school.raw_name && school.raw_name.toLowerCase().includes(searchTerm);
+                const searchInName = school.name && school.name.toLowerCase().includes(searchTerm);
+                return searchInRawName || searchInName;
+            });
             renderSchoolList(filteredSchools.slice(0, DEFAULT_DISPLAY_COUNT * 2));
         }
     }, 300);
 };
 
-const handleSchoolClick = async (event) => { /* Sin cambios */
-    event.preventDefault(); const target = event.target.closest('.school-list-item'); if (!target) return;
-    resultsContainer.style.display = 'block'; resultsContent.innerHTML = ''; if(mainLoader) mainLoader.style.display = 'block';
+const handleSchoolClick = async (event) => {
+    event.preventDefault(); 
+    const target = event.target.closest('.school-list-item'); 
+    if (!target) return;
+    
+    resultsContainer.style.display = 'block'; 
+    resultsContent.innerHTML = ''; 
+    if(mainLoader) mainLoader.style.display = 'block';
     schoolNameHeader.textContent = "Cargando detalles para: " + target.dataset.displayName + "... ☕";
     resultsContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    
     try {
-        const periodo = periodSelect.value; const department = departmentSelect.value; const schoolId = target.dataset.id;
+        const periodo = periodSelect.value; 
+        const department = departmentSelect.value; 
+        const schoolId = target.dataset.id;
+        
+        // Debug: Log the school ID components
+        console.log("School ID:", schoolId);
+        console.log("School ID parts:", schoolId.split("|"));
+        
+        // Ensure proper encoding
+        const encodedDepartment = encodeURIComponent(department);
         const encodedSchoolId = encodeURIComponent(schoolId);
-        const data = await fetchData(`/api/school_details/${periodo}/${department}/${encodedSchoolId}`);
-        if(data.error) { resultsContent.innerHTML = `<p class="error">${data.error}</p>`; } else { renderResults(data); }
-    } catch (error) { /* Ya manejado */ } finally { if(mainLoader) mainLoader.style.display = 'none'; }
+        
+        const url = `/api/school_details/${periodo}/${encodedDepartment}/${encodedSchoolId}`;
+        console.log("Fetching from URL:", url);
+        
+        const data = await fetchData(url);
+        
+        if(data.error) { 
+            resultsContent.innerHTML = `<p class="error">${data.error}</p>`; 
+        } else { 
+            renderResults(data); 
+        }
+    } catch (error) { 
+        console.error("Error in handleSchoolClick:", error);
+        resultsContent.innerHTML = `<p class="error">Error al cargar los detalles del colegio: ${error.message}</p>`;
+    } finally { 
+        if(mainLoader) mainLoader.style.display = 'none'; 
+    }
 };
+
 
 const handleTabClick = (event) => { /* Sin cambios */
     event.preventDefault(); tabs.forEach(t=>t.classList.remove('active')); tabContents.forEach(c=>c.classList.remove('active'));

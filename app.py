@@ -7,6 +7,7 @@ from collections import defaultdict
 from flask import Flask, jsonify, render_template, request, url_for
 import requests # Necesario para la verificación de Turnstile
 import configparser
+from urllib.parse import unquote
 
 # 'thefuzz' ya no se usa aquí, la búsqueda será en el frontend
 # from thefuzz import fuzz
@@ -238,67 +239,113 @@ def get_schools_for_department_period(periodo, department_name):
 
 @app.route('/api/school_details/<periodo>/<department_name_param>/<path:school_id_str>')
 def get_school_details(periodo, department_name_param, school_id_str):
-    # Esta función no cambia su lógica fundamental, sigue trayendo detalles de un colegio específico.
-    school_id_parts = school_id_str.split("|")
-    if len(school_id_parts) != 5: return jsonify({"error": "ID de colegio inválido."}), 400
-    cole_nombre, cole_mcpio, cole_nat, cole_cal, cole_depto_colegio_norm = school_id_parts
-    conn = get_db_connection()
-    student_list_q = """SELECT estu_fechanacimiento, estu_genero, estu_nacionalidad, punt_global, percentil_global
-        FROM student_results WHERE periodo = ? AND cole_depto_ubicacion_norm = ? AND cole_nombre_establecimiento = ?
-        AND cole_mcpio_ubicacion = ? AND cole_naturaleza = ? AND cole_calendario = ? AND punt_global IS NOT NULL
-        ORDER BY CAST(punt_global AS REAL) DESC"""
-    students_data = conn.execute(student_list_q, (periodo, cole_depto_colegio_norm, cole_nombre, cole_mcpio, cole_nat, cole_cal)).fetchall()
-    student_list = [dict(r) for r in students_data]
-    bench_res, d_bench, n_bench = [], defaultdict(float), defaultdict(float)
-    for r in conn.execute("SELECT materia, promedio FROM departmental_benchmarks WHERE periodo = ? AND departamento = ?", (periodo, cole_depto_colegio_norm)).fetchall(): d_bench[r['materia']] = r['promedio']
-    for r in conn.execute("SELECT materia, promedio FROM national_benchmarks WHERE periodo = ?", (periodo,)).fetchall(): n_bench[r['materia']] = r['promedio']
-    
-    s_stats_cols = ', '.join(AVG_SCORE_PRECALCULATED_COLUMNS.values())
-    s_stats_q = f"SELECT {s_stats_cols}, rank_departmental, rank_national FROM school_statistics WHERE periodo = ? AND cole_nombre_establecimiento = ? AND cole_mcpio_ubicacion = ? AND cole_naturaleza = ? AND cole_calendario = ? AND cole_depto_ubicacion_norm = ?"
-    s_avg_row = conn.execute(s_stats_q, (periodo, cole_nombre, cole_mcpio, cole_nat, cole_cal, cole_depto_colegio_norm)).fetchone()
-
-    s_disp_map = [('Global', 'punt_global'), ('Matemáticas', 'punt_matematicas'), ('Lectura Crítica', 'punt_lectura_critica'), ('C. Naturales', 'punt_c_naturales'), ('Sociales y Ciu.', 'punt_sociales_ciudadanas'), ('Inglés', 'punt_ingles')]
-    if s_avg_row:
-        for disp_n, orig_k in s_disp_map:
-            precalc_col = AVG_SCORE_PRECALCULATED_COLUMNS.get(orig_k)
-            avg = s_avg_row[precalc_col] if precalc_col and s_avg_row[precalc_col] is not None else 0
-            bench_res.append({'subject': disp_n, 'school_avg': avg, 'dept_avg': d_bench.get(orig_k,0), 'nat_avg': n_bench.get(orig_k,0)})
-    else:
-        for disp_n, orig_k in s_disp_map: bench_res.append({'subject': disp_n, 'school_avg': 0, 'dept_avg': d_bench.get(orig_k,0), 'nat_avg': n_bench.get(orig_k,0)})
-
-    desemp_map = [('Lectura Crítica', 'lectura_critica'), ('Matemáticas', 'matematicas'), ('C. Naturales', 'c_naturales'), ('Sociales y Ciu.', 'sociales_ciudadanas'), ('Inglés', 'ingles')]
-    perf_levels = []
-    for disp_n, mat_k in desemp_map:
-        lvl_q = "SELECT nivel, count FROM school_performance_levels WHERE periodo = ? AND cole_nombre_establecimiento = ? AND cole_mcpio_ubicacion = ? AND cole_naturaleza = ? AND cole_calendario = ? AND cole_depto_ubicacion_norm = ? AND materia = ?"
-        lvl_data = conn.execute(lvl_q, (periodo, cole_nombre, cole_mcpio, cole_nat, cole_cal, cole_depto_colegio_norm, mat_k)).fetchall()
-        perf_levels.append({'subject': disp_n, 'levels': {r['nivel']: r['count'] for r in lvl_data}, 'type': 'english' if 'ingles' == mat_k else 'standard'})
-    
-    hist_data = [s['punt_global'] for s in student_list if s['punt_global'] is not None]
-    hist_evo = []
     try:
-        curr_y, curr_p_sfx = int(periodo[:-1]), periodo[-1]
-        for yr_key in [f"{y}{curr_p_sfx}" for y in range(curr_y, curr_y - 6, -1)]:
-            yr_disp = format_period_display(yr_key)
-            h_q = "SELECT avg_punt_global FROM school_statistics WHERE periodo = ? AND cole_nombre_establecimiento = ? AND cole_mcpio_ubicacion = ? AND cole_naturaleza = ? AND cole_calendario = ? AND cole_depto_ubicacion_norm = ?"
-            h_row = conn.execute(h_q, (yr_key, cole_nombre, cole_mcpio, cole_nat, cole_cal, cole_depto_colegio_norm)).fetchone()
-            if h_row and h_row['avg_punt_global'] is not None: hist_evo.append({'periodo': yr_disp, 'media': h_row['avg_punt_global']})
-            else:
-                p_exists = conn.execute("SELECT 1 FROM national_benchmarks WHERE periodo = ? LIMIT 1", (yr_key,)).fetchone()
-                hist_evo.append({'periodo': yr_disp, 'media': 0 if p_exists else -1})
-    except ValueError: pass # Si hay error parseando el periodo
-    
-    c_gen_row = conn.execute("SELECT DISTINCT cole_genero FROM student_results WHERE periodo = ? AND cole_nombre_establecimiento = ? AND cole_mcpio_ubicacion = ? AND cole_naturaleza = ? AND cole_calendario = ? AND cole_depto_ubicacion_norm = ? AND cole_genero IS NOT NULL AND TRIM(cole_genero) != '' LIMIT 1", (periodo, cole_nombre, cole_mcpio, cole_nat, cole_cal, cole_depto_colegio_norm)).fetchone()
-    c_gen_disp = c_gen_row['cole_genero'] if c_gen_row and c_gen_row['cole_genero'] else ''
-    conn.close()
-    
-    s_name_disp = f"{cole_nombre} ({cole_mcpio}{' - ' + c_gen_disp if c_gen_disp else ''} - {cole_nat} - {cole_cal}) | {format_period_display(periodo)}"
-    return jsonify({
-        'school_name_display': s_name_disp,
-        'rank_departmental': s_avg_row['rank_departmental'] if s_avg_row else None,
-        'rank_national': s_avg_row['rank_national'] if s_avg_row else None,
-        'student_list': student_list, 'benchmarks': bench_res, 'performance_levels': perf_levels,
-        'histogram_data': hist_data, 'historical_evolution': hist_evo
-    })
+        # Decode the URL-encoded school ID
+        school_id_str = unquote(school_id_str)
+        
+        # Debug logging
+        print(f"Received school details request: periodo={periodo}, dept={department_name_param}, school_id={school_id_str}")
+        
+        school_id_parts = school_id_str.split("|")
+        if len(school_id_parts) != 5:
+            print(f"Invalid school ID format: {school_id_str}")
+            return jsonify({"error": f"ID de colegio inválido. Recibido: {len(school_id_parts)} partes, esperado: 5"}), 400
+        
+        cole_nombre, cole_mcpio, cole_nat, cole_cal, cole_depto_colegio_norm = school_id_parts
+        
+        # Debug: Print the parsed values
+        print(f"Parsed values: nombre='{cole_nombre}', municipio='{cole_mcpio}', naturaleza='{cole_nat}', calendario='{cole_cal}', depto='{cole_depto_colegio_norm}'")
+        
+        conn = get_db_connection()
+        
+        # First, verify the school exists
+        verify_query = """
+        SELECT COUNT(*) as count 
+        FROM student_results 
+        WHERE periodo = ? 
+        AND cole_depto_ubicacion_norm = ? 
+        AND cole_nombre_establecimiento = ?
+        AND cole_mcpio_ubicacion = ? 
+        AND cole_naturaleza = ? 
+        AND cole_calendario = ?
+        """
+        verify_result = conn.execute(verify_query, (periodo, cole_depto_colegio_norm, cole_nombre, cole_mcpio, cole_nat, cole_cal)).fetchone()
+        
+        if verify_result['count'] == 0:
+            print(f"No students found for school: {cole_nombre}")
+            return jsonify({"error": f"No se encontraron estudiantes para el colegio: {cole_nombre}"}), 404
+        
+        # Continue with the rest of the function as before...
+        student_list_q = """SELECT estu_fechanacimiento, estu_genero, estu_nacionalidad, punt_global, percentil_global
+            FROM student_results WHERE periodo = ? AND cole_depto_ubicacion_norm = ? AND cole_nombre_establecimiento = ?
+            AND cole_mcpio_ubicacion = ? AND cole_naturaleza = ? AND cole_calendario = ? AND punt_global IS NOT NULL
+            ORDER BY CAST(punt_global AS REAL) DESC"""
+        students_data = conn.execute(student_list_q, (periodo, cole_depto_colegio_norm, cole_nombre, cole_mcpio, cole_nat, cole_cal)).fetchall()
+        student_list = [dict(r) for r in students_data]
+        
+        # Rest of the function remains the same...
+        bench_res, d_bench, n_bench = [], defaultdict(float), defaultdict(float)
+        for r in conn.execute("SELECT materia, promedio FROM departmental_benchmarks WHERE periodo = ? AND departamento = ?", (periodo, cole_depto_colegio_norm)).fetchall(): 
+            d_bench[r['materia']] = r['promedio']
+        for r in conn.execute("SELECT materia, promedio FROM national_benchmarks WHERE periodo = ?", (periodo,)).fetchall(): 
+            n_bench[r['materia']] = r['promedio']
+        
+        s_stats_cols = ', '.join(AVG_SCORE_PRECALCULATED_COLUMNS.values())
+        s_stats_q = f"SELECT {s_stats_cols}, rank_departmental, rank_national FROM school_statistics WHERE periodo = ? AND cole_nombre_establecimiento = ? AND cole_mcpio_ubicacion = ? AND cole_naturaleza = ? AND cole_calendario = ? AND cole_depto_ubicacion_norm = ?"
+        s_avg_row = conn.execute(s_stats_q, (periodo, cole_nombre, cole_mcpio, cole_nat, cole_cal, cole_depto_colegio_norm)).fetchone()
+
+        s_disp_map = [('Global', 'punt_global'), ('Matemáticas', 'punt_matematicas'), ('Lectura Crítica', 'punt_lectura_critica'), ('C. Naturales', 'punt_c_naturales'), ('Sociales y Ciu.', 'punt_sociales_ciudadanas'), ('Inglés', 'punt_ingles')]
+        if s_avg_row:
+            for disp_n, orig_k in s_disp_map:
+                precalc_col = AVG_SCORE_PRECALCULATED_COLUMNS.get(orig_k)
+                avg = s_avg_row[precalc_col] if precalc_col and s_avg_row[precalc_col] is not None else 0
+                bench_res.append({'subject': disp_n, 'school_avg': avg, 'dept_avg': d_bench.get(orig_k,0), 'nat_avg': n_bench.get(orig_k,0)})
+        else:
+            print(f"No statistics found for school: {cole_nombre}")
+            for disp_n, orig_k in s_disp_map: 
+                bench_res.append({'subject': disp_n, 'school_avg': 0, 'dept_avg': d_bench.get(orig_k,0), 'nat_avg': n_bench.get(orig_k,0)})
+
+        desemp_map = [('Lectura Crítica', 'lectura_critica'), ('Matemáticas', 'matematicas'), ('C. Naturales', 'c_naturales'), ('Sociales y Ciu.', 'sociales_ciudadanas'), ('Inglés', 'ingles')]
+        perf_levels = []
+        for disp_n, mat_k in desemp_map:
+            lvl_q = "SELECT nivel, count FROM school_performance_levels WHERE periodo = ? AND cole_nombre_establecimiento = ? AND cole_mcpio_ubicacion = ? AND cole_naturaleza = ? AND cole_calendario = ? AND cole_depto_ubicacion_norm = ? AND materia = ?"
+            lvl_data = conn.execute(lvl_q, (periodo, cole_nombre, cole_mcpio, cole_nat, cole_cal, cole_depto_colegio_norm, mat_k)).fetchall()
+            perf_levels.append({'subject': disp_n, 'levels': {r['nivel']: r['count'] for r in lvl_data}, 'type': 'english' if 'ingles' == mat_k else 'standard'})
+        
+        hist_data = [s['punt_global'] for s in student_list if s['punt_global'] is not None]
+        hist_evo = []
+        try:
+            curr_y, curr_p_sfx = int(periodo[:-1]), periodo[-1]
+            for yr_key in [f"{y}{curr_p_sfx}" for y in range(curr_y, curr_y - 6, -1)]:
+                yr_disp = format_period_display(yr_key)
+                h_q = "SELECT avg_punt_global FROM school_statistics WHERE periodo = ? AND cole_nombre_establecimiento = ? AND cole_mcpio_ubicacion = ? AND cole_naturaleza = ? AND cole_calendario = ? AND cole_depto_ubicacion_norm = ?"
+                h_row = conn.execute(h_q, (yr_key, cole_nombre, cole_mcpio, cole_nat, cole_cal, cole_depto_colegio_norm)).fetchone()
+                if h_row and h_row['avg_punt_global'] is not None: 
+                    hist_evo.append({'periodo': yr_disp, 'media': h_row['avg_punt_global']})
+                else:
+                    p_exists = conn.execute("SELECT 1 FROM national_benchmarks WHERE periodo = ? LIMIT 1", (yr_key,)).fetchone()
+                    hist_evo.append({'periodo': yr_disp, 'media': 0 if p_exists else -1})
+        except ValueError as e: 
+            print(f"Error parsing period: {e}")
+        
+        c_gen_row = conn.execute("SELECT DISTINCT cole_genero FROM student_results WHERE periodo = ? AND cole_nombre_establecimiento = ? AND cole_mcpio_ubicacion = ? AND cole_naturaleza = ? AND cole_calendario = ? AND cole_depto_ubicacion_norm = ? AND cole_genero IS NOT NULL AND TRIM(cole_genero) != '' LIMIT 1", (periodo, cole_nombre, cole_mcpio, cole_nat, cole_cal, cole_depto_colegio_norm)).fetchone()
+        c_gen_disp = c_gen_row['cole_genero'] if c_gen_row and c_gen_row['cole_genero'] else ''
+        conn.close()
+        
+        s_name_disp = f"{cole_nombre} ({cole_mcpio}{' - ' + c_gen_disp if c_gen_disp else ''} - {cole_nat} - {cole_cal}) | {format_period_display(periodo)}"
+        return jsonify({
+            'school_name_display': s_name_disp,
+            'rank_departmental': s_avg_row['rank_departmental'] if s_avg_row else None,
+            'rank_national': s_avg_row['rank_national'] if s_avg_row else None,
+            'student_list': student_list, 'benchmarks': bench_res, 'performance_levels': perf_levels,
+            'histogram_data': hist_data, 'historical_evolution': hist_evo
+        })
+    except Exception as e:
+        print(f"Error in get_school_details: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": f"Error interno del servidor: {str(e)}"}), 500
+
 
 if __name__ == '__main__':
     print("Para ejecutar la aplicación: flask --app app --debug run")
