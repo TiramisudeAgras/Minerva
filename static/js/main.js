@@ -8,7 +8,6 @@ const departmentSelect = document.getElementById('department-select');
 const departmentSelectLabel = document.querySelector('label[for="department-select"]');
 const schoolControls = document.getElementById('school-controls');
 const schoolSearch = document.getElementById('school-search');
-// const topNSelect = document.getElementById('top-n-select'); // REMOVED
 const schoolListContainer = document.getElementById('school-list-container');
 const resultsContainer = document.getElementById('results-container');
 const schoolNameHeader = document.getElementById('school-name-header');
@@ -22,9 +21,9 @@ const turnstileChallengeContainer = document.getElementById('turnstile-challenge
 const turnstileStatusMessage = document.getElementById('turnstile-status-message');
 const minervaAppContainer = document.getElementById('minerva-app-container');
 
-let allSchoolsInPeriodDepartment = []; // Guardará TODOS los colegios del depto/periodo actual
-let fuseInstance = null; // Instancia de Fuse.js para la búsqueda "inteligente"
-const DEFAULT_DISPLAY_COUNT = 50; // Mostrar Top 50 por defecto
+let allSchoolsInPeriodDepartment = [];
+let fuseInstance = null;
+const DEFAULT_DISPLAY_COUNT = 50;
 
 let currentHistogramChartInstance = null;
 let currentEvolutionChartInstance = null;
@@ -76,6 +75,11 @@ function onTurnstileError(errorCode) { /* Sin cambios */
 // --- Funciones Principales de la App ---
 document.addEventListener('DOMContentLoaded', () => {
     if (copyrightYearSpan) copyrightYearSpan.textContent = new Date().getFullYear();
+    // Asegurar que el input de búsqueda esté deshabilitado al inicio si los controles están ocultos
+    if (schoolSearch && schoolControls && schoolControls.style.display === 'none') {
+        schoolSearch.disabled = true;
+        schoolSearch.placeholder = "Seleccione periodo y depto...";
+    }
 });
 
 const fetchData = async (url) => { /* Sin cambios */
@@ -100,11 +104,9 @@ const fetchData = async (url) => { /* Sin cambios */
     }
 };
 
-// renderSchoolList ahora solo se encarga de pintar la lista que se le pasa
-const renderSchoolList = (schoolsToDisplay) => {
+const renderSchoolList = (schoolsToDisplay) => { /* Sin cambios */
     schoolListContainer.innerHTML = '';
     if (!schoolsToDisplay || schoolsToDisplay.length === 0) {
-        // Modificar mensaje si la búsqueda no arrojó resultados vs. no hay colegios en el depto.
         const searchTerm = schoolSearch.value.trim();
         if (searchTerm) {
             schoolListContainer.innerHTML = '<p style="padding:1rem; text-align:center;"><small>No se encontraron colegios que coincidan con tu búsqueda.</small></p>';
@@ -121,23 +123,20 @@ const renderSchoolList = (schoolsToDisplay) => {
         if (school.rank_departmental != null && school.rank_national != null) {
             rankDisplay = `<span class="rank-slashline"> (Dep: ${school.rank_departmental} / Nac: ${school.rank_national})</span>`;
         }
-        // El puntaje 'mean' ya viene del backend
         schoolItem.innerHTML = `<h6>${school.name}${rankDisplay}</h6><p>Promedio Global: <strong>${school.mean.toFixed(2)}</strong> (${school.count} estudiantes)</p>`;
         schoolListContainer.appendChild(schoolItem);
     });
 };
 
-// Nueva función para mostrar la lista inicial de colegios (Top 50)
 const displayInitialSchoolList = () => {
     if (allSchoolsInPeriodDepartment && allSchoolsInPeriodDepartment.length > 0) {
-        // Asumimos que allSchoolsInPeriodDepartment ya viene ordenado por 'mean' (avg_punt_global) DESC del backend
         renderSchoolList(allSchoolsInPeriodDepartment.slice(0, DEFAULT_DISPLAY_COUNT));
     } else {
-        renderSchoolList([]); // Mostrar mensaje de "no hay colegios"
+        renderSchoolList([]);
     }
 };
 
-const renderResults = (data) => { /* Sin cambios funcionales mayores */
+const renderResults = (data) => { /* Sin cambios */
     const { school_name_display, rank_departmental, rank_national, student_list, benchmarks, performance_levels, histogram_data, historical_evolution } = data;
     let headerRankDisplay = '';
     if (rank_departmental != null && rank_national != null) {
@@ -165,10 +164,19 @@ const handlePeriodChange = async (event) => {
     const periodo = event.target.value;
     departmentSelect.innerHTML = '<option value="">Cargando departamentos...</option>';
     if(departmentSelectLabel) departmentSelectLabel.style.display = 'none';
-    if(schoolControls) schoolControls.style.display = 'none';
+    if(schoolControls) schoolControls.style.display = 'none'; // Ocultar controles de colegio
     resultsContainer.style.display = 'none';
     schoolListContainer.innerHTML = '<small>Seleccione un departamento.</small>';
-    schoolSearch.value = ''; fuseInstance = null; allSchoolsInPeriodDepartment = []; // Resetear búsqueda y datos
+    
+    // **NUEVO: Deshabilitar y limpiar búsqueda al cambiar periodo**
+    if (schoolSearch) {
+        schoolSearch.value = '';
+        schoolSearch.disabled = true;
+        schoolSearch.placeholder = "Seleccione departamento...";
+    }
+    fuseInstance = null;
+    allSchoolsInPeriodDepartment = [];
+
     if (!periodo) return;
     try {
         const departments = await fetchData(`/api/departments/${periodo}`);
@@ -179,81 +187,96 @@ const handlePeriodChange = async (event) => {
     } catch (error) { departmentSelect.innerHTML = '<option value="">Error al cargar deptos.</option>'; }
 };
 
-// MODIFICADO: `loadSchoolList` ahora trae TODOS los colegios y luego muestra el Top 50 inicial
+// MODIFICADO: `loadSchoolList` para manejar el estado de carga del input de búsqueda
 const loadSchoolList = async () => {
     const department = departmentSelect.value;
     const periodo = periodSelect.value;
+    
     fuseInstance = null; // Resetear instancia de Fuse.js
     allSchoolsInPeriodDepartment = []; // Limpiar lista anterior
 
-    schoolListContainer.innerHTML = `<article aria-busy="true" style="text-align:center; padding:1rem;">Cargando todos los colegios de ${department || 'seleccionado'}. Esto podría tardar hasta unos minutos. Por favor espere...☕</article>`;
+    // **NUEVO: Deshabilitar input de búsqueda y mostrar mensaje de carga específico**
+    if (schoolSearch) {
+        schoolSearch.disabled = true;
+        schoolSearch.placeholder = "Cargando colegios...";
+    }
+    schoolListContainer.innerHTML = `<article aria-busy="true" style="text-align:center; padding:1rem;">Cargando todos los colegios del departamento de ${department || 'seleccionado'}, esto podría tardar un momento. Por favor espere...</article>`;
     resultsContainer.style.display = 'none';
 
     if (!department || !periodo) {
         if(schoolControls) schoolControls.style.display = 'none';
         schoolListContainer.innerHTML = '<small>Seleccione periodo y departamento primero.</small>';
+        if (schoolSearch) schoolSearch.placeholder = "Seleccione periodo y depto..."; // Actualizar placeholder
         return;
     }
     if(schoolControls) schoolControls.style.display = 'block';
 
-    // La URL ya no lleva el parámetro 'q' ni 'top', el backend envía todos los colegios del depto.
-    let url = `/api/schools/${periodo}/${department}`;
+    let url = `/api/schools/${periodo}/${department}`; // Backend ahora envía todos
 
     try {
-        const schools = await fetchData(url); // Trae TODOS los colegios
-        allSchoolsInPeriodDepartment = schools; // Guardar la lista completa
+        const schools = await fetchData(url);
+        allSchoolsInPeriodDepartment = schools;
 
         if (typeof Fuse === 'undefined') {
             console.error("Fuse.js no está cargado. La búsqueda inteligente no funcionará.");
-            // Como fallback, podríamos simplemente mostrar la lista sin búsqueda inteligente
-            // o implementar una búsqueda básica con 'includes'.
-            // Por ahora, la búsqueda no funcionará si Fuse no está.
+            if (schoolSearch) {
+                schoolSearch.placeholder = "Búsqueda no disponible"; // Ocultar o mostrar error
+                // No deshabilitarlo permanentemente aquí, ya que podría cargarse tarde.
+            }
         } else {
-            // Inicializar Fuse.js con la lista completa de colegios
             const fuseOptions = {
-                keys: ['raw_name'], // Campo donde se buscará (nombre crudo del colegio)
-                includeScore: true, // Útil si queremos ordenar por relevancia de búsqueda
-                threshold: 0.4,     // Umbral de búsqueda (0.0 = exacto, 1.0 = cualquier cosa). Ajustar.
-                minMatchCharLength: 2, // Mínimo de caracteres para empezar a buscar
+                keys: ['raw_name'], includeScore: true, threshold: 0.4, minMatchCharLength: 2,
             };
             fuseInstance = new Fuse(allSchoolsInPeriodDepartment, fuseOptions);
-            // console.log("Fuse.js inicializado con", allSchoolsInPeriodDepartment.length, "colegios.");
+            // console.log("Fuse.js inicializado."); // Útil para depurar
         }
         displayInitialSchoolList(); // Mostrar el Top 50 inicial
+        // **NUEVO: Habilitar input de búsqueda después de cargar**
+        if (schoolSearch) {
+            schoolSearch.disabled = false;
+            schoolSearch.placeholder = "Buscar por nombre...";
+        }
+
     } catch (error) {
         schoolListContainer.innerHTML = '<small>Error al cargar los colegios. Intente de nuevo.</small>';
+        if (schoolSearch) {
+            schoolSearch.disabled = true; // Mantener deshabilitado si hay error
+            schoolSearch.placeholder = "Error al cargar colegios";
+        }
     }
 };
 
-// MODIFICADO: `handleSchoolSearch` ahora usa Fuse.js para búsqueda en el cliente
 const handleSchoolSearch = () => {
     clearTimeout(searchDebounceTimer);
     searchDebounceTimer = setTimeout(() => {
+        // **NUEVO: Verificar si la búsqueda está habilitada (datos cargados y Fuse listo)**
+        if (!schoolSearch || schoolSearch.disabled) {
+            // console.log("Búsqueda no habilitada o datos no cargados.");
+            return; // No hacer nada si la búsqueda no debe estar activa
+        }
+
         const searchTerm = schoolSearch.value.trim().toLowerCase();
 
-        if (!searchTerm) { // Si la búsqueda está vacía, mostrar el Top 50 inicial
+        if (!searchTerm) {
             displayInitialSchoolList();
             return;
         }
 
         if (fuseInstance) {
             const fuseResults = fuseInstance.search(searchTerm);
-            // console.log("Resultados de Fuse.js:", fuseResults); // Para depurar
-            // Fuse.js devuelve { item: (objeto original), score: (puntuación), ... }
             const filteredSchools = fuseResults.map(result => result.item);
-            renderSchoolList(filteredSchools.slice(0, DEFAULT_DISPLAY_COUNT*2)); // Mostrar hasta 100 resultados de búsqueda
+            renderSchoolList(filteredSchools.slice(0, DEFAULT_DISPLAY_COUNT * 2)); // Mostrar más resultados si es búsqueda
         } else {
-            // Fallback si Fuse.js no está cargado: búsqueda simple con 'includes'
-            // console.warn("Fuse.js no disponible, usando búsqueda simple.");
+            // console.warn("Fuse.js no disponible, usando búsqueda simple por inclusión.");
             const filteredSchools = allSchoolsInPeriodDepartment.filter(school =>
                 school.raw_name.toLowerCase().includes(searchTerm)
             );
-            renderSchoolList(filteredSchools.slice(0, DEFAULT_DISPLAY_COUNT*2)); // Mostrar hasta 100 resultados
+            renderSchoolList(filteredSchools.slice(0, DEFAULT_DISPLAY_COUNT * 2));
         }
-    }, 300); // Debounce de 300ms
+    }, 300);
 };
 
-const handleSchoolClick = async (event) => { /* Sin cambios funcionales */
+const handleSchoolClick = async (event) => { /* Sin cambios */
     event.preventDefault(); const target = event.target.closest('.school-list-item'); if (!target) return;
     resultsContainer.style.display = 'block'; resultsContent.innerHTML = ''; if(mainLoader) mainLoader.style.display = 'block';
     schoolNameHeader.textContent = "Cargando detalles para: " + target.dataset.displayName + "... ☕";
@@ -284,13 +307,17 @@ const initializeApp = async () => {
     } catch (error) { if(initialLoader) initialLoader.innerHTML = 'Error al cargar periodos. Intente recargar.'; }
 
     periodSelect.addEventListener('change', handlePeriodChange);
-    departmentSelect.addEventListener('change', () => { // Al cambiar depto, limpiar búsqueda y cargar lista
-        schoolSearch.value = ''; // Limpiar input de búsqueda
-        fuseInstance = null; // Resetear Fuse
+    departmentSelect.addEventListener('change', () => {
+        schoolSearch.value = '';
+        fuseInstance = null;
         allSchoolsInPeriodDepartment = [];
+        if (schoolSearch) { // Asegurar que se deshabilite al cambiar depto
+            schoolSearch.disabled = true;
+            schoolSearch.placeholder = "Cargando colegios...";
+        }
         loadSchoolList();
     });
-    // ELIMINADO: topNSelect.addEventListener('change', loadSchoolList);
+    // ELIMINADO: Listener para topNSelect
     schoolSearch.addEventListener('input', handleSchoolSearch);
     schoolListContainer.addEventListener('click', handleSchoolClick);
     tabs.forEach(tab => tab.addEventListener('click', handleTabClick));
