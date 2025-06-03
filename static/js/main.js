@@ -199,14 +199,15 @@ const loadSchoolList = async () => {
     const department = departmentSelect.value;
     const periodo = periodSelect.value;
     
-    fuseInstance = null;
-    allSchoolsInPeriodDepartment = [];
+    fuseInstance = null; // Resetear instancia de Fuse.js
+    allSchoolsInPeriodDepartment = []; // Limpiar lista anterior
 
+    // Deshabilitar input de búsqueda y mostrar mensaje de carga específico
     if (schoolSearch) {
         schoolSearch.disabled = true;
         schoolSearch.placeholder = "Cargando colegios...";
     }
-    schoolListContainer.innerHTML = `<article aria-busy="true" style="text-align:center; padding:1rem;">Cargando todos los colegios del departamento de ${department || 'seleccionado'}, esto podría tardar un momento. Por favor espere...</article>`;
+    schoolListContainer.innerHTML = `<article aria-busy="true" style="text-align:center; padding:1rem;">Cargando colegios del departamento de ${department || 'seleccionado'}...</article>`;
     resultsContainer.style.display = 'none';
 
     if (!department || !periodo) {
@@ -217,19 +218,54 @@ const loadSchoolList = async () => {
     }
     if(schoolControls) schoolControls.style.display = 'block';
 
-    // Ensure department is properly encoded
+    // Asegurar que el departamento esté correctamente codificado
     const encodedDepartment = encodeURIComponent(department);
-    let url = `/api/schools/${periodo}/${encodedDepartment}`;
-
+    
     try {
-        const schools = await fetchData(url);
+        // NUEVO: Cargar escuelas en páginas para evitar timeouts
+        let allSchools = [];
+        let page = 1;
+        let hasMore = true;
         
-        // Debug: Check if schools have raw_name
-        if (schools.length > 0 && !schools[0].raw_name) {
-            console.warn("Schools don't have raw_name field, search might not work properly");
+        // Para departamentos grandes como Bogotá, cargar en chunks
+        while (hasMore) {
+            const url = `/api/schools/${periodo}/${encodedDepartment}?page=${page}&per_page=500`;
+            
+            try {
+                const response = await fetchData(url);
+                
+                // Manejar respuesta paginada o respuesta antigua (array directo)
+                if (Array.isArray(response)) {
+                    // Respuesta antigua sin paginación
+                    allSchools = response;
+                    hasMore = false;
+                } else if (response.schools) {
+                    // Nueva respuesta con paginación
+                    allSchools = allSchools.concat(response.schools);
+                    hasMore = page < response.pagination.total_pages;
+                    page++;
+                    
+                    // Actualizar mensaje de progreso
+                    if (hasMore) {
+                        schoolListContainer.innerHTML = `<article aria-busy="true" style="text-align:center; padding:1rem;">Cargando colegios... ${allSchools.length} de ${response.pagination.total}</article>`;
+                    }
+                } else {
+                    console.error("Formato de respuesta inesperado:", response);
+                    hasMore = false;
+                }
+            } catch (error) {
+                // Si hay timeout en una página específica, continuar con lo que tenemos
+                console.error(`Error cargando página ${page}:`, error);
+                hasMore = false;
+            }
         }
         
-        allSchoolsInPeriodDepartment = schools;
+        allSchoolsInPeriodDepartment = allSchools;
+
+        // Debug: Verificar si las escuelas tienen raw_name
+        if (allSchools.length > 0 && !allSchools[0].raw_name) {
+            console.warn("Schools don't have raw_name field, search might not work properly");
+        }
 
         if (typeof Fuse === 'undefined') {
             console.error("Fuse.js no está cargado. La búsqueda inteligente no funcionará.");
@@ -238,7 +274,7 @@ const loadSchoolList = async () => {
             }
         } else {
             const fuseOptions = {
-                keys: ['raw_name', 'name'], // Search in both fields as fallback
+                keys: ['raw_name', 'name'], // Buscar en ambos campos como fallback
                 includeScore: true, 
                 threshold: 0.4, 
                 minMatchCharLength: 2,
@@ -247,8 +283,9 @@ const loadSchoolList = async () => {
             console.log("Fuse.js initialized with", allSchoolsInPeriodDepartment.length, "schools");
         }
         
-        displayInitialSchoolList();
+        displayInitialSchoolList(); // Mostrar el Top 50 inicial
         
+        // Habilitar input de búsqueda después de cargar
         if (schoolSearch) {
             schoolSearch.disabled = false;
             schoolSearch.placeholder = "Buscar por nombre...";

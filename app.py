@@ -175,9 +175,30 @@ def get_departments_for_period(periodo):
 @app.route('/api/schools/<periodo>/<department_name>')
 def get_schools_for_department_period(periodo, department_name):
     # El parámetro 'q' para búsqueda ya no se usa aquí, la búsqueda es frontend
-    # El parámetro 'top' tampoco, el frontend mostrará su Top 50 inicial
-
+    # NUEVO: Agregar paginación para evitar timeouts con departamentos grandes
+    
+    # Decodificar el nombre del departamento por si viene URL-encoded
+    department_name = unquote(department_name)
+    
+    # NUEVO: Obtener parámetros de paginación
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 500, type=int)  # Limitar a 500 escuelas por página
+    
+    # Limitar per_page para evitar abusos
+    per_page = min(per_page, 1000)
+    
     conn = get_db_connection()
+    
+    # NUEVO: Primero contar el total de escuelas
+    count_query = """
+        SELECT COUNT(*) as total
+        FROM school_statistics
+        WHERE periodo = ? AND cole_depto_ubicacion_norm = ?
+              AND cole_nombre_establecimiento IS NOT NULL AND TRIM(cole_nombre_establecimiento) != ''
+              AND avg_punt_global IS NOT NULL
+    """
+    total_count = conn.execute(count_query, (periodo, department_name)).fetchone()['total']
+    
     select_cols = """
         ss.cole_nombre_establecimiento, ss.cole_mcpio_ubicacion, ss.cole_naturaleza, 
         ss.cole_calendario, ss.cole_depto_ubicacion_norm,
@@ -198,16 +219,19 @@ def get_schools_for_department_period(periodo, department_name):
                AND ss.periodo = sr_distinct.periodo
                AND ss.cole_depto_ubicacion_norm = sr_distinct.cole_depto_ubicacion_norm
     """
-    # Traer TODOS los colegios del departamento/periodo, ordenados por promedio global
-    # El frontend se encargará de mostrar el Top 50 inicial y de la búsqueda/filtrado.
+    
+    # NUEVO: Agregar LIMIT y OFFSET para paginación
+    offset = (page - 1) * per_page
     query_sql = f"""
         SELECT {select_cols} FROM school_statistics ss {join_for_genero}
         WHERE ss.periodo = ? AND ss.cole_depto_ubicacion_norm = ?
               AND ss.cole_nombre_establecimiento IS NOT NULL AND TRIM(ss.cole_nombre_establecimiento) != ''
               AND ss.avg_punt_global IS NOT NULL 
         ORDER BY ss.avg_punt_global DESC
+        LIMIT ? OFFSET ?
     """
-    all_schools_rows = conn.execute(query_sql, (periodo, department_name)).fetchall()
+    
+    all_schools_rows = conn.execute(query_sql, (periodo, department_name, per_page, offset)).fetchall()
     conn.close()
 
     schools_list = []
@@ -234,7 +258,17 @@ def get_schools_for_department_period(periodo, department_name):
             'rank_departmental': row.get('rank_departmental'),
             'rank_national': row.get('rank_national')
         })
-    return jsonify(schools_list)
+    
+    # NUEVO: Devolver información de paginación
+    return jsonify({
+        'schools': schools_list,
+        'pagination': {
+            'total': total_count,
+            'page': page,
+            'per_page': per_page,
+            'total_pages': (total_count + per_page - 1) // per_page
+        }
+    })
 
 
 @app.route('/api/school_details/<periodo>/<department_name_param>/<path:school_id_str>')
