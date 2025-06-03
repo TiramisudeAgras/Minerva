@@ -9,7 +9,7 @@ body {
 /* Colores del Tema: Base blanca, acentos en Amarillo Oscuro */
 :root[data-theme="light"], :root {
     --pico-background-color: #fbfbfb;
-    --pico-color: #212529;
+    --pico-color: #212529; /* Color de texto principal, oscuro para buen contraste */
     --minerva-yellow: #FFC107; /* Ámbar */
     --minerva-yellow-hover: #FFA000; /* Naranja más oscuro para hover */
     --minerva-yellow-focus: rgba(255, 193, 7, 0.3); /* Amarillo translúcido para focus */
@@ -24,6 +24,7 @@ body {
     --pico-form-element-background-color: #fff;
     --pico-form-element-border-color: #ced4da;
     --pico-form-element-focus-color: var(--minerva-yellow); /* Color de foco para formularios */
+    --pico-secondary: #5f6c7b; /* Color secundario de PicoCSS, usualmente un gris */
 }
 
 /* Enlaces Generales */
@@ -43,27 +44,27 @@ nav {
 }
 nav ul {
     padding-left: 0;
-    margin-bottom: 0; /* Para alinear el borde de la pestaña con el borde de nav */
+    margin-bottom: 0;
 }
 nav ul li {
     display: inline-block;
-    margin-bottom: -1px; /* Truco para que el borde de la pestaña se fusione con el de nav */
+    margin-bottom: -1px;
 }
-nav ul li a.tab-link { /* Específico para .tab-link */
+nav ul li a.tab-link {
     padding: 0.75rem 1.25rem;
     text-decoration: none;
-    font-weight: 500; /* Pestañas un poco más gruesas */
+    font-weight: 500;
     display: block;
-    border-bottom: 3px solid transparent; /* Borde inferior transparente por defecto */
-    color: var(--pico-secondary); /* Color sutil para pestañas inactivas */
+    border-bottom: 3px solid transparent;
+    color: var(--pico-secondary);
 }
 nav ul li a.tab-link.active {
-    background-color: transparent; /* Sin fondo para la pestaña activa */
-    color: var(--minerva-yellow-hover); /* Color de texto para pestaña activa */
-    border-bottom-color: var(--minerva-yellow-hover); /* Subrayado amarillo para activa */
+    background-color: transparent;
+    color: var(--minerva-yellow-hover);
+    border-bottom-color: var(--minerva-yellow-hover);
 }
 nav ul li a.tab-link:not(.active):hover {
-    background-color: rgba(255, 193, 7, 0.05); /* Hover muy sutil */
+    background-color: rgba(255, 193, 7, 0.05);
     color: var(--minerva-yellow);
     border-bottom-color: rgba(255, 193, 7, 0.3);
 }
@@ -71,15 +72,15 @@ nav ul li a.tab-link:not(.active):hover {
 
 /* Estilo del título principal (hgroup) */
 header.container > hgroup {
-    margin-top: 0.5rem; /* Espacio entre ASCII art y Título */
-    margin-bottom: 1rem; /* Espacio debajo del título antes de la navegación */
+    margin-top: 0.5rem;
+    margin-bottom: 1rem;
     text-align: center;
 }
 header.container > hgroup > h1 {
     margin-bottom: 0.25rem;
 }
 header.container > hgroup > h2 {
-    font-weight: 300 !important; /* Para el subtítulo específicamente */
+    font-weight: 300 !important;
     font-size: 1.1rem;
     margin-top: 0;
 }
@@ -99,17 +100,17 @@ button:hover, input[type="submit"]:hover, input[type="reset"]:hover, input[type=
 
 /* Estilo de Tablas */
 table th {
-    background-color: rgba(255, 193, 7, 0.08); /* Fondo muy sutil para encabezados de tabla */
-    border-bottom: 2px solid var(--minerva-yellow); /* Línea amarilla debajo de encabezados */
+    background-color: rgba(255, 193, 7, 0.08);
+    border-bottom: 2px solid var(--minerva-yellow);
     font-weight: 500;
 }
 table td {
-    border-bottom: 1px solid var(--pico-card-border-color); /* Líneas más sutiles entre filas */
+    border-bottom: 1px solid var(--pico-card-border-color);
 }
 
 /* Estilo de Details/Summary (elementos desplegables) */
 details[open] > summary {
-    background-color: rgba(255, 193, 7, 0.05); /* Fondo sutil para summary abierto */
+    background-color: rgba(255, 193, 7, 0.05);
     border-bottom: 1px solid #eee;
 }
 summary {
@@ -121,7 +122,7 @@ summary {
 
 /* Indicador de Carga (aria-busy) */
 [aria-busy="true"] {
-    --pico-loading-spinner-color: var(--minerva-yellow-hover); /* Spinner amarillo */
+    --pico-loading-spinner-color: var(--minerva-yellow-hover);
 }
 
 /* Mensajes de Error */
@@ -133,10 +134,10 @@ summary {
 
 /* Contenedores con Scroll */
 .overflow-auto {
-    padding: 0.25rem; max-height: 400px; /* Altura máxima para scroll */
+    padding: 0.25rem; max-height: 400px;
 }
 #school-list-container.overflow-auto {
-     max-height: 350px; /* Altura específica para la lista de colegios */
+     max-height: 350px;
      background-color: var(--pico-card-background-color);
      border: 1px solid var(--pico-card-border-color);
      border-radius: var(--pico-border-radius);
@@ -151,52 +152,57 @@ summary {
     background-color: #fff;
 }
 .school-list-item:hover {
-    border-color: var(--minerva-yellow); /* Borde amarillo al pasar el mouse */
-    box-shadow: 0 2px 8px rgba(0,0,0,0.08); /* Sombra sutil */
+    border-color: var(--minerva-yellow);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
 }
 .school-list-item h6 { margin-bottom: 0.3rem; color: var(--pico-color); font-weight: 600; }
 .school-list-item p { margin-bottom: 0; font-size: 0.85rem; color: #555; }
 
-/* Estilo para el "Slash Line" de Ranking */
+/* *** ESTILO MEJORADO PARA EL "SLASH LINE" DE RANKING *** */
 .rank-slashline {
-    font-size: 0.8em; /* Un poco más pequeño que el texto normal */
-    color: var(--pico-secondary); /* Color secundario, más sutil */
-    font-weight: normal; /* Peso normal, no negrita */
-    margin-left: 0.5em; /* Pequeño espacio a la izquierda */
+    font-size: 0.8em; /* Un poco más pequeño que el texto circundante */
+    /* color: var(--pico-color); */ /* Color de texto principal para alto contraste */
+    color: #4A5568; /* Un gris oscuro pero no negro puro, más moderno */
+    font-weight: 500; /* Un poco más de peso para que resalte */
+    margin-left: 0.6em; /* Espacio para separarlo del nombre */
+    background-color: rgba(255, 193, 7, 0.15); /* Fondo amarillo Minerva muy sutil y transparente */
+    padding: 0.15em 0.4em; /* Pequeño padding interno */
+    border-radius: 4px; /* Bordes ligeramente redondeados */
+    /* border: 1px solid rgba(255, 193, 7, 0.25); */ /* Borde opcional, si quieres más definición */
+    white-space: nowrap; /* Para que no se parta en dos líneas si es largo */
 }
-h3 .rank-slashline, h6 .rank-slashline { /* Si está dentro de un h3 o h6 */
-    font-size: 0.75em; /* Aún más pequeño para no dominar el título */
+/* Ajuste si está dentro de encabezados para mantener proporción */
+h3 .rank-slashline, h6 .rank-slashline {
+    font-size: 0.75em; /* Un poco más pequeño dentro de h3/h6 */
+    /* Podrías ajustar el padding aquí también si es necesario */
 }
 
 
 /* ASCII Art Styling */
 .ascii-art {
     font-family: "Courier New", Courier, monospace;
-    white-space: pre; /* Conservar espacios y saltos de línea */
+    white-space: pre;
     text-align: center;
-    color: var(--pico-muted-color); /* Color sutil */
-    font-size: 11px; /* Tamaño base, ajustar según sea necesario */
-    line-height: 0.65; /* líneas apretadas */
-    overflow: hidden; /* Evitar scrollbars si es muy grande */
+    color: var(--pico-muted-color);
+    font-size: 11px;
+    line-height: 0.65;
+    overflow: hidden;
     padding-top: 0.5rem;
     padding-bottom: 0.5rem;
-    margin-bottom: 0.5rem; /* Espacio entre el arte y el grupo de título */
-    max-height: 390px; /* Limitar altura total */
+    margin-bottom: 0.5rem;
+    max-height: 390px;
 }
 
-/* Media query para pantallas medianas y grandes (tablets, desktops) */
 @media (min-width: 768px) {
     .ascii-art {
-        font-size: 11px; /* Ajustar este valor si es necesario */
+        font-size: 11px;
         line-height: 0.6;
     }
 }
 
-/* Media query para pantallas pequeñas (móviles) */
 @media (max-width: 480px) {
     .ascii-art {
-        font-size: 0.9vw; /* Relativo al ancho del viewport en móviles */
-        /* O un valor fijo más pequeño, ej: font-size: 4.5px; */
+        font-size: 0.9vw;
         line-height: 0.6;
         padding-bottom: 0.3rem;
         margin-bottom: 0.2rem;
@@ -206,35 +212,35 @@ h3 .rank-slashline, h6 .rank-slashline { /* Si está dentro de un h3 o h6 */
 
 /* Contenedores de Gráficos (Chart.js) */
 #histogram-chart-container, #evolution-chart-container {
-    position: relative; /* Necesario para Chart.js */
-    height: 280px; /* Altura fija para los gráficos */
+    position: relative;
+    height: 280px;
     width: 100%;
-    margin-top: 1rem; /* Espacio arriba */
+    margin-top: 1rem;
     padding: 0.5rem;
     border: 1px solid var(--pico-card-border-color);
     border-radius: var(--pico-border-radius);
-    background-color: #fff; /* Fondo blanco para los gráficos */
+    background-color: #fff;
 }
 
-canvas { /* El elemento canvas dentro de los contenedores */
+canvas {
     max-width: 100%;
     max-height: 100%;
 }
 
 /* Manejo de Contenido de Pestañas */
-.tab-content { display: none; padding-top: 1rem; } /* Oculto por defecto */
-.tab-content.active { display: block; } /* Visible si está activo */
+.tab-content { display: none; padding-top: 1rem; }
+.tab-content.active { display: block; }
 
 /* Encabezados Generales */
 h1, h2, h3, h4, h5, h6 {
-    font-weight: 500; /* Peso regular para Lexend Deca */
+    font-weight: 500;
 }
 
 /* Estilo del Footer */
 footer.container {
     text-align: center;
     padding-top: 1.5rem;
-    margin-top: 3rem; /* Más espacio arriba del footer */
+    margin-top: 3rem;
     border-top: 1px solid var(--pico-muted-border-color);
     color: var(--pico-secondary);
 }
