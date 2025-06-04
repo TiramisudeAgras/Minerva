@@ -133,7 +133,7 @@ def format_period_display(period_str):
     return period_str
 
 def verify_turnstile_token(turnstile_response_token):
-    if not CLOUDFLARE_TURNSTILE_SECRET_KEY: return True 
+    if not CLOUDFLARE_TURNSTILE_SECRET_KEY: return False 
     payload = {'secret': CLOUDFLARE_TURNSTILE_SECRET_KEY, 'response': turnstile_response_token}
     try:
         response = requests.post('https://challenges.cloudflare.com/turnstile/v0/siteverify', data=payload, timeout=10)
