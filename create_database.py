@@ -6,13 +6,13 @@ import glob
 import os
 from collections import defaultdict
 from datetime import datetime
-import json # <-- NEW IMPORT
+import json
 
-# --- Configuración ---
+# --- Configuración --- (Keep as is)
 DATABASE_NAME = 'minerva_icfes_data.db'
 LAST_UPDATED_FILE = 'minerva_last_updated.txt'
-STATIC_DATA_PATH = 'static_data' # <-- NEW: Path for static JSON files (relative to where app.py runs, or adjust as needed)
-SCHOOLS_PER_PAGE_STATIC_JSON = 100 # <-- NEW: Chunk size for static JSON pages
+STATIC_DATA_PATH = 'static_data' 
+SCHOOLS_PER_PAGE_STATIC_JSON = 100
 
 COLUMNS_TO_IMPORT = [
     'periodo', 'estu_consecutivo', 'estu_genero', 'estu_nacionalidad',
@@ -28,14 +28,15 @@ COLUMNS_TO_IMPORT = [
 ]
 SCORE_COLUMNS = ['punt_global', 'punt_lectura_critica', 'punt_matematicas', 'punt_c_naturales', 'punt_sociales_ciudadanas', 'punt_ingles']
 
+# --- normalize_department --- (Keep as is)
 def normalize_department(dept_name):
     if not dept_name: return None
     dept_upper = dept_name.strip().upper()
     if 'BOGOTA' in dept_upper or 'BOGOTÁ' in dept_upper : return 'BOGOTÁ'
     return dept_upper
 
+# --- create_tables --- (Keep as is)
 def create_tables(conn):
-    # ... (Keep existing create_tables function as is) ...
     cursor = conn.cursor()
     column_defs = ", ".join([f'"{col}" TEXT' for col in COLUMNS_TO_IMPORT])
 
@@ -107,9 +108,8 @@ def create_tables(conn):
     conn.commit()
     print("Tablas creadas (o ya existen).")
 
-
+# --- create_indexes --- (Keep as is)
 def create_indexes(conn):
-    # ... (Keep existing create_indexes function as is) ...
     cursor = conn.cursor()
     print("Creando índices para optimizar consultas...")
     cursor.execute("""CREATE INDEX IF NOT EXISTS idx_school_lookup ON student_results(
@@ -134,9 +134,8 @@ def create_indexes(conn):
     conn.commit()
     print("¡Índices creados exitosamente! Las consultas ahora serán MUCHO más rápidas.")
 
-
+# --- populate_student_results --- (Keep as is)
 def populate_student_results(conn, lista_rutas):
-    # ... (Keep existing populate_student_results function as is) ...
     cursor = conn.cursor()
     print("Iniciando carga de datos de estudiantes en la base de datos...")
     total_rows_processed_all_files = 0
@@ -184,9 +183,8 @@ def populate_student_results(conn, lista_rutas):
         except Exception as e_file: print(f"ERROR FATAL procesando el archivo {ruta_archivo}: {e_file}")
     print(f"Carga de datos de estudiantes completada. Total filas procesadas: {total_rows_processed_all_files}")
 
-
+# --- calculate_and_store_benchmarks --- (Keep as is)
 def calculate_and_store_benchmarks(conn):
-    # ... (Keep existing calculate_and_store_benchmarks function as is) ...
     cursor = conn.cursor()
     print("Calculando y almacenando benchmarks departamentales y nacionales...")
     cursor.execute("DELETE FROM departmental_benchmarks")
@@ -216,9 +214,8 @@ def calculate_and_store_benchmarks(conn):
     conn.commit()
     print("Benchmarks calculados y almacenados.")
 
-
+# --- precalculate_school_statistics --- (Keep as is)
 def precalculate_school_statistics(conn):
-    # ... (Keep existing precalculate_school_statistics function as is) ...
     cursor = conn.cursor()
     print("Pre-calculando estadísticas por colegio (esto tomará unos minutos pero ahorrará MUCHO tiempo después)...")
     cursor.execute("DELETE FROM school_statistics")
@@ -289,9 +286,8 @@ def precalculate_school_statistics(conn):
     conn.commit()
     print("¡Estadísticas y niveles de desempeño pre-calculados exitosamente!")
 
-
+# --- calculate_and_store_school_rankings --- (Keep as is)
 def calculate_and_store_school_rankings(conn):
-    # ... (Keep existing calculate_and_store_school_rankings function as is) ...
     cursor = conn.cursor()
     print("Calculando y almacenando rankings departamentales y nacionales...")
     sql_update_dept_rank = """
@@ -373,9 +369,8 @@ def calculate_and_store_school_rankings(conn):
     conn.commit()
     print("Rankings calculados y almacenados.")
 
-
+# --- analyze_database_performance --- (Keep as is)
 def analyze_database_performance(conn):
-    # ... (Keep existing analyze_database_performance function as is) ...
     cursor = conn.cursor()
     print("\n--- Análisis de rendimiento de la base de datos ---")
     total_rows = cursor.execute("SELECT COUNT(*) FROM student_results").fetchone()[0]
@@ -391,8 +386,8 @@ def analyze_database_performance(conn):
     size_mb = (page_count * page_size) / (1024 * 1024)
     print(f"Tamaño de la base de datos: {size_mb:.1f} MB")
 
+# --- record_last_updated_time --- (Keep as is)
 def record_last_updated_time():
-    # ... (Keep existing record_last_updated_time function as is) ...
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     try:
         with open(LAST_UPDATED_FILE, 'w', encoding='utf-8') as f:
@@ -401,19 +396,23 @@ def record_last_updated_time():
     except Exception as e:
         print(f"Error al registrar fecha de actualización: {e}")
 
-# --- NEW FUNCTION: To generate static JSON files for school lists ---
+# --- generate_static_school_lists --- (Keep as is from previous response)
 def generate_static_school_lists(conn):
     print("\n--- Generando archivos JSON estáticos para listas de colegios ---")
     cursor = conn.cursor()
 
-    base_output_dir = os.path.join(STATIC_DATA_PATH, 'schools') # e.g., static_data/schools/
+    # Ensure STATIC_DATA_PATH is defined relative to your project structure.
+    # If app.py is in the root, and you want static_data/ in the root, then this is fine.
+    # If app.py serves static files from a 'static' subdirectory, you might want:
+    # base_output_dir = os.path.join('static', 'generated_school_data', 'schools')
+    # For now, using the defined STATIC_DATA_PATH directly.
+    base_output_dir = os.path.join(STATIC_DATA_PATH, 'schools') 
     if not os.path.exists(base_output_dir):
         os.makedirs(base_output_dir, exist_ok=True)
     print(f"Directorio base para JSONs: {os.path.abspath(base_output_dir)}")
 
-    # Get distinct periodos
     cursor.execute("SELECT DISTINCT periodo FROM school_statistics ORDER BY periodo DESC")
-    periodos = [row[0] for row in cursor.fetchall()]
+    periodos = [row['periodo'] for row in cursor.fetchall()] # Access by column name due to row_factory
 
     for periodo in periodos:
         periodo_dir = os.path.join(base_output_dir, str(periodo))
@@ -426,15 +425,13 @@ def generate_static_school_lists(conn):
             WHERE periodo = ? AND cole_depto_ubicacion_norm IS NOT NULL
             ORDER BY cole_depto_ubicacion_norm ASC
         """, (periodo,))
-        departamentos = [row[0] for row in cursor.fetchall()]
+        departamentos = [row['cole_depto_ubicacion_norm'] for row in cursor.fetchall()]
 
         for dept_norm in departamentos:
             print(f"  Procesando: Periodo {periodo}, Departamento {dept_norm}")
-
-            # Query to get all schools for this periodo and departamento, including cole_genero
-            # This query is similar to the one in app.py's get_schools_for_department_period
-            # Note: Joining for cole_genero can be slow if student_results is very large.
-            # Consider if cole_genero is essential for the list view or can be omitted/handled differently.
+            
+            # This query structure was causing the error if row_factory wasn't set for the main conn.
+            # Now it should work because main_conn will have row_factory set.
             query_all_schools = """
                 SELECT 
                     ss.cole_nombre_establecimiento, ss.cole_mcpio_ubicacion, ss.cole_naturaleza, 
@@ -460,13 +457,11 @@ def generate_static_school_lists(conn):
                       AND ss.avg_punt_global IS NOT NULL 
                 ORDER BY ss.avg_punt_global DESC
             """
-            # Execute with specific parameters for the join subquery as well
             cursor.execute(query_all_schools, (periodo, dept_norm, periodo, dept_norm))
             all_school_rows_for_dept = cursor.fetchall()
 
             formatted_schools = []
             for row_data in all_school_rows_for_dept:
-                # Formatting logic copied from app.py
                 key_parts = [
                     str(row_data['cole_nombre_establecimiento'] or ''), str(row_data['cole_mcpio_ubicacion'] or ''),
                     str(row_data['cole_naturaleza'] or ''), str(row_data['cole_calendario'] or ''),
@@ -477,7 +472,7 @@ def generate_static_school_lists(conn):
                 display_parts = [
                     str(row_data['cole_nombre_establecimiento'] or ''),
                     str(row_data['cole_mcpio_ubicacion'] or ''),
-                    str(row_data['cole_genero'] or ''), # From the join
+                    str(row_data['cole_genero'] or ''),
                     str(row_data['cole_naturaleza'] or ''),
                     str(row_data['cole_calendario'] or '')
                 ]
@@ -500,42 +495,53 @@ def generate_static_school_lists(conn):
 
             total_pages = (total_count + SCHOOLS_PER_PAGE_STATIC_JSON - 1) // SCHOOLS_PER_PAGE_STATIC_JSON
 
-            # Save metadata file
-            dept_safe_name = dept_norm.replace(' ', '_').replace('/', '_') # Make filename safe
+            dept_safe_name = dept_norm.replace(' ', '_').replace('/', '_') 
             meta_filename = os.path.join(periodo_dir, f"{dept_safe_name}_meta.json")
             meta_data = {
                 'total_count': total_count,
                 'total_pages': total_pages,
                 'per_page': SCHOOLS_PER_PAGE_STATIC_JSON,
                 'periodo': periodo,
-                'departamento': dept_norm
+                'departamento': dept_norm # Store original department name in meta if needed for display
             }
             with open(meta_filename, 'w', encoding='utf-8') as f_meta:
-                json.dump(meta_data, f_meta)
+                json.dump(meta_data, f_meta, ensure_ascii=False) # ensure_ascii=False for accents
             print(f"    Meta file saved: {meta_filename}")
 
-            # Save paginated school list files
             for page_num in range(1, total_pages + 1):
                 start_index = (page_num - 1) * SCHOOLS_PER_PAGE_STATIC_JSON
                 end_index = start_index + SCHOOLS_PER_PAGE_STATIC_JSON
                 page_data = formatted_schools[start_index:end_index]
                 
                 page_filename = os.path.join(periodo_dir, f"{dept_safe_name}_page_{page_num}.json")
+                # Store just the list of schools in page files for smaller size
                 with open(page_filename, 'w', encoding='utf-8') as f_page:
-                    json.dump({'schools': page_data}, f_page) # Wrap in a 'schools' key for consistency with previous API
+                    json.dump({'schools': page_data}, f_page, ensure_ascii=False) 
             print(f"    Paginated files saved for {dept_norm} ({total_pages} pages)")
             
     print("--- Generación de archivos JSON estáticos completada ---")
-# --- END NEW FUNCTION ---
+
 
 def main():
-    archivos_de_datos_p1 = glob.glob("Examen_Saber_11_*1.txt")
+    archivos_de_datos_p1 = glob.glob("Examen_Saber_11_*1.txt") # Consider absolute paths or ensure script runs from correct dir
     archivos_de_datos_p2 = glob.glob("Examen_Saber_11_*2.txt")
     archivos_de_datos = sorted(list(set(archivos_de_datos_p1 + archivos_de_datos_p2)))
 
     if not archivos_de_datos:
-        print("No se encontraron archivos de datos ('Examen_Saber_11_*.txt'). Revisa la carpeta.")
+        print("No se encontraron archivos de datos ('Examen_Saber_11_*.txt'). "
+              "Asegúrese de que los archivos estén en el directorio correcto o proporcione rutas absolutas.")
+        # Check current working directory
+        print(f"Directorio de trabajo actual: {os.getcwd()}")
+        # Example: Look in a 'data_input' subdirectory if that's where they are
+        # data_input_dir = 'data_input'
+        # archivos_de_datos_p1 = glob.glob(os.path.join(data_input_dir,"Examen_Saber_11_*1.txt"))
+        # archivos_de_datos_p2 = glob.glob(os.path.join(data_input_dir,"Examen_Saber_11_*2.txt"))
+        # archivos_de_datos = sorted(list(set(archivos_de_datos_p1 + archivos_de_datos_p2)))
+        # if not archivos_de_datos:
+        #     print(f"Tampoco se encontraron archivos en el subdirectorio '{data_input_dir}'.")
+        #     return
         return
+
 
     print("Archivos de datos que se procesarán:")
     for f_path in archivos_de_datos: print(f"  - {f_path}")
@@ -550,6 +556,10 @@ def main():
             return 
 
     conn = sqlite3.connect(DATABASE_NAME)
+    # --- THIS IS THE FIX FOR THE TypeError ---
+    conn.row_factory = sqlite3.Row 
+    # --- END FIX ---
+
     conn.execute("PRAGMA journal_mode = WAL;")
     conn.execute("PRAGMA synchronous = NORMAL;")
     conn.execute("PRAGMA cache_size = -64000;") 
@@ -557,14 +567,27 @@ def main():
 
     create_tables(conn)
     populate_student_results(conn, archivos_de_datos)
-    create_indexes(conn) # Create indexes AFTER data load
+    create_indexes(conn) 
     calculate_and_store_benchmarks(conn)
     precalculate_school_statistics(conn)
     calculate_and_store_school_rankings(conn)
-
-    # --- NEW: Call to generate static JSON files ---
-    generate_static_school_lists(conn)
-    # --- END NEW ---
+    
+    # Generate static JSON files for school lists
+    # Make sure STATIC_DATA_PATH is set correctly (e.g., 'static/generated_data')
+    # For Flask, files under 'static' folder are served automatically.
+    # So, if STATIC_DATA_PATH = 'static/generated_school_data', ensure 'static' dir exists
+    # and Flask will serve files from '/static/generated_school_data/schools/...'
+    
+    # Adjust STATIC_DATA_PATH in the global scope if needed, e.g.
+    # global STATIC_DATA_PATH
+    # STATIC_DATA_PATH = os.path.join('your_flask_app_directory', 'static', 'generated_school_data')
+    # This ensures paths are correct if script is run from different locations.
+    # For now, assuming 'static_data' is created where the script runs, and web server is configured for it.
+    if not os.path.exists(STATIC_DATA_PATH):
+        print(f"Creando directorio para datos estáticos: {os.path.abspath(STATIC_DATA_PATH)}")
+        os.makedirs(STATIC_DATA_PATH, exist_ok=True)
+        
+    generate_static_school_lists(conn) # Call the new function
 
     analyze_database_performance(conn)
 
@@ -575,7 +598,9 @@ def main():
     conn.close()
     record_last_updated_time()
     print(f"\n¡Proceso completado! La base de datos '{DATABASE_NAME}' ha sido creada y optimizada.")
-    print(f"Los archivos JSON estáticos para las listas de colegios se han generado en '{STATIC_DATA_PATH}'.")
+    print(f"Los archivos JSON estáticos para las listas de colegios se han generado en '{os.path.abspath(STATIC_DATA_PATH)}'.")
+    print("Asegúrese de que su servidor web (Flask) pueda servir archivos desde esta ruta (o una subruta de 'static').")
+
 
 if __name__ == '__main__':
     main()
