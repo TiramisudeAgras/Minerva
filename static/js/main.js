@@ -262,67 +262,17 @@ const restoreFormState = () => {
     }
 };
 
-const createLoadingAnimation = (container, department) => {
-    const loadingMessages = [
-        "🔍 Buscando colegios en " + department + "...",
-        "📚 Organizando datos académicos...",
-        "🎓 Preparando resultados...",
-        "📊 Analizando estadísticas...",
-        "🏫 Recopilando información escolar...",
-    ];
-    
-    let messageIndex = 0;
-    const loadingHTML = `
-        <div style="text-align:center; padding:2rem;">
-            <article aria-busy="true" style="margin-bottom:1rem;"></article>
-            <h5 id="loading-message" style="color: var(--minerva-yellow); margin-bottom:0.5rem;">
-                ${loadingMessages[0]}
-            </h5>
-            <p id="loading-progress" style="font-size:1.2rem; font-weight:500;">
-                Cargando...
-            </p>
-            <progress id="loading-bar" value="0" max="100" style="width:100%; margin-top:1rem;"></progress>
-            <p style="margin-top:0.5rem; color: var(--pico-secondary); font-size:0.9rem;">
-                Dato Curioso: ¡Minerva es la romanización de la diosa griega Atenea!
-            </p>
-        </div>
-    `;
-    
-    container.innerHTML = loadingHTML;
-    
-    // Cambiar mensajes cada 2 segundos
-    const messageInterval = setInterval(() => {
-        messageIndex = (messageIndex + 1) % loadingMessages.length;
-        const messageEl = document.getElementById('loading-message');
-        if (messageEl) {
-            messageEl.textContent = loadingMessages[messageIndex];
-        }
-    }, 2000);
-    
-    return {
-        updateProgress: (loaded, total) => {
-            const progressEl = document.getElementById('loading-progress');
-            const barEl = document.getElementById('loading-bar');
-            if (progressEl && barEl) {
-                const percentage = Math.round((loaded / total) * 100);
-                progressEl.textContent = `${loaded.toLocaleString()} de ${total.toLocaleString()} colegios (${percentage}%)`;
-                barEl.value = percentage;
-            }
-        },
-        destroy: () => {
-            clearInterval(messageInterval);
-        }
-    };
-};
-
 // MODIFICADO: `loadSchoolList` para manejar el estado de carga del input de búsqueda
-const loadSchoolList = async () => {
+const loadSchoolList = async (searchQuery = '') => {
     const department = departmentSelect.value;
     const periodo = periodSelect.value;
     
+<<<<<<< HEAD
     fuseInstance = null;
     allSchoolsInPeriodDepartment = [];
 
+=======
+>>>>>>> parent of f6b5640 (Sistema de Carga con Animaciones)
     if (!department || !periodo) {
         if(schoolControls) schoolControls.style.display = 'none';
         schoolListContainer.innerHTML = '<small>Seleccione periodo y departamento primero.</small>';
@@ -334,6 +284,7 @@ const loadSchoolList = async () => {
     }
     
     if(schoolControls) schoolControls.style.display = 'block';
+<<<<<<< HEAD
     
     // CAMBIO CLAVE: Habilitar búsqueda inmediatamente
     if (schoolSearch) {
@@ -341,9 +292,26 @@ const loadSchoolList = async () => {
         schoolSearch.value = '';
         schoolSearch.placeholder = "Cargando top colegios...";
     }
+=======
+>>>>>>> parent of f6b5640 (Sistema de Carga con Animaciones)
     
+    // NUEVO: No deshabilitar la búsqueda durante la carga
+    if (schoolSearch && !searchQuery) {
+        schoolSearch.disabled = false;
+        schoolSearch.placeholder = "Buscar colegio...";
+    }
+    
+    // Mostrar indicador de carga
+    if (!searchQuery) {
+        schoolListContainer.innerHTML = `<article aria-busy="true" style="text-align:center; padding:1rem;">Cargando top colegios...</article>`;
+    }
+    
+    resultsContainer.style.display = 'none';
+
     const encodedDepartment = encodeURIComponent(department);
+    let url = `/api/schools/${periodo}/${encodedDepartment}?limit=50`;
     
+<<<<<<< HEAD
     // Mostrar indicador de carga
     schoolListContainer.innerHTML = `<article aria-busy="true" style="text-align:center; padding:1rem;">Cargando mejores colegios...</article>`;
     resultsContainer.style.display = 'none';
@@ -426,10 +394,30 @@ const loadSchoolList = async () => {
             if (schoolSearch) {
                 schoolSearch.placeholder = `Buscar entre ${totalSchools} colegios...`;
             }
+=======
+    if (searchQuery) {
+        url += `&q=${encodeURIComponent(searchQuery)}`;
+    }
+
+    try {
+        const response = await fetchData(url);
+        
+        // Manejar la nueva respuesta
+        let schools = response.schools || response; // Compatibilidad con formato anterior
+        
+        if (searchQuery && response.total_results > response.displayed_results) {
+            // Mostrar mensaje si hay más resultados
+            const moreResults = response.total_results - response.displayed_results;
+            schoolListContainer.innerHTML = `<p style="padding:0.5rem; text-align:center; background-color: var(--pico-card-background-color);"><small>Mostrando ${response.displayed_results} de ${response.total_results} resultados. Refine su búsqueda para ver más.</small></p>`;
+            renderSchoolList(schools, true); // true = append to existing content
+        } else {
+            renderSchoolList(schools);
+>>>>>>> parent of f6b5640 (Sistema de Carga con Animaciones)
         }
         
     } catch (error) {
         console.error("Error loading schools:", error);
+<<<<<<< HEAD
         schoolListContainer.innerHTML = `
             <div style="text-align:center; padding:2rem;">
                 <p style="color: var(--pico-color);">😕 Error al cargar los colegios</p>
@@ -441,6 +429,9 @@ const loadSchoolList = async () => {
             schoolSearch.disabled = true;
             schoolSearch.placeholder = "Error al cargar colegios";
         }
+=======
+        schoolListContainer.innerHTML = '<small>Error al cargar los colegios. Intente de nuevo.</small>';
+>>>>>>> parent of f6b5640 (Sistema de Carga con Animaciones)
     }
 };
 
@@ -487,55 +478,22 @@ const loadRemainingSchools = async (periodo, encodedDepartment, startPage, pagin
 const handleSchoolSearch = () => {
     clearTimeout(searchDebounceTimer);
     searchDebounceTimer = setTimeout(() => {
-        if (!schoolSearch || schoolSearch.disabled) {
+        if (!schoolSearch || !departmentSelect.value || !periodSelect.value) {
             return;
         }
 
-        const searchTerm = schoolSearch.value.trim().toLowerCase();
+        const searchTerm = schoolSearch.value.trim();
 
         if (!searchTerm) {
-            displayInitialSchoolList();
+            // Si no hay búsqueda, cargar top 50
+            loadSchoolList();
             return;
         }
 
-        // Mostrar indicador de búsqueda
-        const searchingIndicator = document.createElement('p');
-        searchingIndicator.style.cssText = 'text-align:center; padding:0.5rem; color: var(--minerva-yellow);';
-        searchingIndicator.textContent = '🔍 Buscando...';
-        schoolListContainer.insertBefore(searchingIndicator, schoolListContainer.firstChild);
-
-        if (fuseInstance) {
-            const fuseResults = fuseInstance.search(searchTerm);
-            const filteredSchools = fuseResults.map(result => result.item);
-            
-            // Remover indicador de búsqueda
-            if (searchingIndicator.parentNode) {
-                searchingIndicator.remove();
-            }
-            
-            // Mostrar más resultados en búsquedas (hasta 100)
-            renderSchoolList(filteredSchools.slice(0, 100));
-            
-            // Si hay muchos resultados, mostrar mensaje
-            if (filteredSchools.length > 100) {
-                const moreMsg = document.createElement('p');
-                moreMsg.style.cssText = 'text-align:center; padding:1rem; color: var(--pico-secondary);';
-                moreMsg.innerHTML = `<small>Mostrando 100 de ${filteredSchools.length} resultados. Sea más específico para mejores resultados.</small>`;
-                schoolListContainer.appendChild(moreMsg);
-            }
-        } else {
-            // Fallback: búsqueda simple
-            const filteredSchools = allSchoolsInPeriodDepartment.filter(school => {
-                const searchInRawName = school.raw_name && school.raw_name.toLowerCase().includes(searchTerm);
-                const searchInName = school.name && school.name.toLowerCase().includes(searchTerm);
-                return searchInRawName || searchInName;
-            });
-            
-            if (searchingIndicator.parentNode) {
-                searchingIndicator.remove();
-            }
-            
-            renderSchoolList(filteredSchools.slice(0, 100));
+        // Si hay al menos 2 caracteres, buscar
+        if (searchTerm.length >= 2) {
+            schoolListContainer.innerHTML = `<article aria-busy="true" style="text-align:center; padding:0.5rem;">Buscando "${searchTerm}"...</article>`;
+            loadSchoolList(searchTerm);
         }
     }, 300); // 300ms debounce
 };
