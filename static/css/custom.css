@@ -3,89 +3,90 @@
 body {
     font-family: 'Lexend Deca', sans-serif;
     --pico-font-family: 'Lexend Deca', sans-serif;
-    --pico-line-height: 1.6; 
+    --pico-line-height: 1.6;
 }
 
-/* Theme Colors: White base, Darker Yellow accents */
+/* Colores del Tema: Base blanca, acentos en Amarillo Oscuro */
 :root[data-theme="light"], :root {
-    --pico-background-color: #fbfbfb; 
-    --pico-color: #212529;            
-    --minerva-yellow: #FFC107; /* Amber */
-    --minerva-yellow-hover: #FFA000;   
-    --minerva-yellow-focus: rgba(255, 193, 7, 0.3);
-    --minerva-yellow-text-on-dark: #212529; 
+    --pico-background-color: #fbfbfb;
+    --pico-color: #212529; /* Color de texto principal, oscuro para buen contraste */
+    --minerva-yellow: #FFC107; /* Ámbar */
+    --minerva-yellow-hover: #FFA000; /* Naranja más oscuro para hover */
+    --minerva-yellow-focus: rgba(255, 193, 7, 0.3); /* Amarillo translúcido para focus */
+    --minerva-yellow-text-on-dark: #212529; /* Texto oscuro sobre fondos amarillos */
     --pico-primary: var(--minerva-yellow);
     --pico-primary-hover: var(--minerva-yellow-hover);
     --pico-primary-focus: var(--minerva-yellow-focus);
-    --pico-primary-inverse: var(--minerva-yellow-text-on-dark);
+    --pico-primary-inverse: var(--minerva-yellow-text-on-dark); /* Texto para botones primarios */
     --pico-card-background-color: #ffffff;
-    --pico-card-border-color: #e0e0e0; 
-    --pico-border-radius: 0.375rem; 
+    --pico-card-border-color: #e0e0e0;
+    --pico-border-radius: 0.375rem; /* Bordes un poco más redondeados */
     --pico-form-element-background-color: #fff;
     --pico-form-element-border-color: #ced4da;
-    --pico-form-element-focus-color: var(--minerva-yellow); /* Yellow focus for forms */
+    --pico-form-element-focus-color: var(--minerva-yellow); /* Color de foco para formularios */
+    --pico-secondary: #5f6c7b; /* Color secundario de PicoCSS, usualmente un gris */
 }
 
-/* General Links */
-a:not([role="button"]):not(.tab-link) { 
-    color: #0056b3; 
-    text-decoration: none; 
+/* Enlaces Generales */
+a:not([role="button"]):not(.tab-link) {
+    color: #0056b3; /* Azul estándar para enlaces */
+    text-decoration: none;
 }
-a:not([role="button"]):not(.tab-link):hover { 
-    color: #003875; 
+a:not([role="button"]):not(.tab-link):hover {
+    color: #003875; /* Azul más oscuro al pasar el mouse */
     text-decoration: underline;
 }
 
-/* Navigation Tabs Styling */
+/* Estilos de Pestañas de Navegación */
 nav {
-    border-bottom: 1px solid var(--pico-muted-border-color); /* Add a subtle line below nav */
-    margin-bottom: 1.5rem; 
+    border-bottom: 1px solid var(--pico-muted-border-color);
+    margin-bottom: 1.5rem;
 }
-nav ul { 
-    padding-left: 0; 
-    margin-bottom: 0; /* Remove bottom margin from ul to align with nav border */
-} 
-nav ul li { 
-    display: inline-block; 
-    margin-bottom: -1px; /* To make tab border align with nav border */
+nav ul {
+    padding-left: 0;
+    margin-bottom: 0;
 }
-nav ul li a { 
-    padding: 0.75rem 1.25rem; /* Increased padding for tabs */
-    text-decoration: none; 
-    font-weight: 500; /* Bolder tabs */
+nav ul li {
+    display: inline-block;
+    margin-bottom: -1px;
+}
+nav ul li a.tab-link {
+    padding: 0.75rem 1.25rem;
+    text-decoration: none;
+    font-weight: 500;
     display: block;
-    border-bottom: 3px solid transparent; /* Default transparent border */
-    color: var(--pico-secondary); /* Subdued color for inactive tabs */
+    border-bottom: 3px solid transparent;
+    color: var(--pico-secondary);
 }
-nav ul li a.active {
-    background-color: transparent; /* No background for active tab link */
-    color: var(--minerva-yellow-hover); /* Active tab text color */
-    border-bottom: 3px solid var(--minerva-yellow-hover); /* Yellow underline for active tab */
+nav ul li a.tab-link.active {
+    background-color: transparent;
+    color: var(--minerva-yellow-hover);
+    border-bottom-color: var(--minerva-yellow-hover);
 }
-nav ul li a:not(.active):hover {
-    background-color: rgba(255, 193, 7, 0.05); /* Very light yellow hover */
+nav ul li a.tab-link:not(.active):hover {
+    background-color: rgba(255, 193, 7, 0.05);
     color: var(--minerva-yellow);
-    border-bottom: 3px solid rgba(255, 193, 7, 0.3);
+    border-bottom-color: rgba(255, 193, 7, 0.3);
 }
 
 
-/* Main hgroup title styling */
+/* Estilo del título principal (hgroup) */
 header.container > hgroup {
-    margin-top: 0.5rem; /* <<--- ADJUSTED: Space between ASCII and Title */
-    margin-bottom: 1rem; /* Space below title before nav */
+    margin-top: 0.5rem;
+    margin-bottom: 1rem;
     text-align: center;
 }
 header.container > hgroup > h1 {
-    margin-bottom: 0.25rem; /* Tighter spacing for h1 */
+    margin-bottom: 0.25rem;
 }
 header.container > hgroup > h2 {
-    font-weight: 300 !important; /* For subtitle specifically */
+    font-weight: 300 !important;
     font-size: 1.1rem;
     margin-top: 0;
 }
 
 
-/* Buttons */
+/* Botones */
 button, input[type="submit"], input[type="reset"], input[type="button"], [role="button"] {
     --pico-background-color: var(--minerva-yellow);
     --pico-border-color: var(--minerva-yellow);
@@ -97,95 +98,111 @@ button:hover, input[type="submit"]:hover, input[type="reset"]:hover, input[type=
     --pico-border-color: var(--minerva-yellow-hover);
 }
 
-/* Table Styling */
-table th { 
-    background-color: rgba(255, 193, 7, 0.08); 
-    border-bottom: 2px solid var(--minerva-yellow); 
+/* Estilo de Tablas */
+table th {
+    background-color: rgba(255, 193, 7, 0.08);
+    border-bottom: 2px solid var(--minerva-yellow);
     font-weight: 500;
 }
 table td {
-    border-bottom: 1px solid var(--pico-card-border-color); /* Lighter lines between rows */
+    border-bottom: 1px solid var(--pico-card-border-color);
 }
 
-/* Details/Summary Styling */
-details[open] > summary { 
-    background-color: rgba(255, 193, 7, 0.05); 
-    border-bottom: 1px solid #eee; 
+/* Estilo de Details/Summary (elementos desplegables) */
+details[open] > summary {
+    background-color: rgba(255, 193, 7, 0.05);
+    border-bottom: 1px solid #eee;
 }
-summary { 
-    font-weight: 500; 
-    padding-top: 0.75rem; /* More padding */
+summary {
+    font-weight: 500;
+    padding-top: 0.75rem;
     padding-bottom: 0.75rem;
     cursor: pointer;
 }
 
-/* Loading Indicator */
-[aria-busy="true"] { 
-    --pico-loading-spinner-color: var(--minerva-yellow-hover); 
+/* Indicador de Carga (aria-busy) */
+[aria-busy="true"] {
+    --pico-loading-spinner-color: var(--minerva-yellow-hover);
 }
 
-/* Error Message Styling */
-.error { 
-    color: #721c24; background-color: #f8d7da; border-color: #f5c6cb; 
-    padding: 0.75rem 1.25rem; margin-top: 1rem; 
-    border: 1px solid transparent; border-radius: var(--pico-border-radius); 
+/* Mensajes de Error */
+.error {
+    color: #721c24; background-color: #f8d7da; border-color: #f5c6cb;
+    padding: 0.75rem 1.25rem; margin-top: 1rem;
+    border: 1px solid transparent; border-radius: var(--pico-border-radius);
 }
 
-/* Scrollable Containers */
-.overflow-auto { 
-    padding: 0.25rem; max-height: 400px; 
+/* Contenedores con Scroll */
+.overflow-auto {
+    padding: 0.25rem; max-height: 400px;
 }
 #school-list-container.overflow-auto {
-     max-height: 350px; background-color: var(--pico-card-background-color);
-     border: 1px solid var(--pico-card-border-color); border-radius: var(--pico-border-radius);
+     max-height: 350px;
+     background-color: var(--pico-card-background-color);
+     border: 1px solid var(--pico-card-border-color);
+     border-radius: var(--pico-border-radius);
      padding: 0.75rem;
 }
 
-/* School List Item Styling */
+/* Estilo de Items en la Lista de Colegios */
 .school-list-item {
-    display: block; margin-bottom: 0.75rem; padding: 1rem;       
+    display: block; margin-bottom: 0.75rem; padding: 1rem;
     border: 1px solid var(--pico-card-border-color); border-radius: var(--pico-border-radius);
     text-decoration: none; cursor: pointer; transition: border-color 0.2s ease, box-shadow 0.2s ease;
-    background-color: #fff; 
+    background-color: #fff;
 }
-.school-list-item:hover { 
-    border-color: var(--minerva-yellow); 
-    box-shadow: 0 2px 8px rgba(0,0,0,0.08); 
+.school-list-item:hover {
+    border-color: var(--minerva-yellow);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
 }
 .school-list-item h6 { margin-bottom: 0.3rem; color: var(--pico-color); font-weight: 600; }
 .school-list-item p { margin-bottom: 0; font-size: 0.85rem; color: #555; }
 
-/* ASCII Art Styling - More space, responsive */
+/* *** ESTILO MEJORADO PARA EL "SLASH LINE" DE RANKING *** */
+.rank-slashline {
+    font-size: 0.8em; /* Un poco más pequeño que el texto circundante */
+    /* color: var(--pico-color); */ /* Color de texto principal para alto contraste */
+    color: #4A5568; /* Un gris oscuro pero no negro puro, más moderno */
+    font-weight: 500; /* Un poco más de peso para que resalte */
+    margin-left: 0.6em; /* Espacio para separarlo del nombre */
+    background-color: rgba(255, 193, 7, 0.15); /* Fondo amarillo Minerva muy sutil y transparente */
+    padding: 0.15em 0.4em; /* Pequeño padding interno */
+    border-radius: 4px; /* Bordes ligeramente redondeados */
+    /* border: 1px solid rgba(255, 193, 7, 0.25); */ /* Borde opcional, si quieres más definición */
+    white-space: nowrap; /* Para que no se parta en dos líneas si es largo */
+}
+/* Ajuste si está dentro de encabezados para mantener proporción */
+h3 .rank-slashline, h6 .rank-slashline {
+    font-size: 0.75em; /* Un poco más pequeño dentro de h3/h6 */
+    /* Podrías ajustar el padding aquí también si es necesario */
+}
+
+
+/* ASCII Art Styling */
 .ascii-art {
     font-family: "Courier New", Courier, monospace;
     white-space: pre;
     text-align: center;
     color: var(--pico-muted-color);
-    
-    font-size: 11px; /* Start with a viewport-width relative font size */
-    line-height: 0.65; /* Keep lines tight */
-    overflow: hidden; /* Prevent scrollbars by clipping if necessary */
-    
-    padding-top: 0.5rem;       /* Space above the art */
-    padding-bottom: 0.5rem;    /* Increased padding below the art */
-    margin-bottom: 0.5rem;     /* Space between art and title group */
-    max-height: 390px;         /* Constrain overall height */
+    font-size: 11px;
+    line-height: 0.65;
+    overflow: hidden;
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+    margin-bottom: 0.5rem;
+    max-height: 390px;
 }
 
-/* Media query for medium screens and up (tablets, desktops) */
 @media (min-width: 768px) {
     .ascii-art {
-        font-size: 11px; /* <<--- FINE-TUNE THIS VALUE (e.g., 6px, 7px) */
-        line-height: 0.6; 
+        font-size: 11px;
+        line-height: 0.6;
     }
 }
 
-/* Media query for small screens (mobile) */
 @media (max-width: 480px) {
     .ascii-art {
-        font-size: 0.9vw; /* Make it smaller relative to viewport on small screens */
-        /* Alternatively, set a smaller fixed px value: */
-        /* font-size: 4.5px; */ 
+        font-size: 0.9vw;
         line-height: 0.6;
         padding-bottom: 0.3rem;
         margin-bottom: 0.2rem;
@@ -193,37 +210,37 @@ summary {
 }
 
 
-/* Chart Canvas Containers for fixed height */
+/* Contenedores de Gráficos (Chart.js) */
 #histogram-chart-container, #evolution-chart-container {
     position: relative;
-    height: 280px; 
-    width: 100%;   
+    height: 280px;
+    width: 100%;
     margin-top: 1rem;
     padding: 0.5rem;
     border: 1px solid var(--pico-card-border-color);
     border-radius: var(--pico-border-radius);
-    background-color: #fff; 
+    background-color: #fff;
 }
 
-canvas { 
-    max-width: 100%; 
-    max-height: 100%; 
+canvas {
+    max-width: 100%;
+    max-height: 100%;
 }
 
-/* Tab content management */
+/* Manejo de Contenido de Pestañas */
 .tab-content { display: none; padding-top: 1rem; }
 .tab-content.active { display: block; }
 
-/* General Headings */
-h1, h2, h3, h4, h5, h6 { 
-    font-weight: 500; /* Regular weight for Lexend Deca headings */
+/* Encabezados Generales */
+h1, h2, h3, h4, h5, h6 {
+    font-weight: 500;
 }
 
-/* Footer Styling */
+/* Estilo del Footer */
 footer.container {
     text-align: center;
     padding-top: 1.5rem;
-    margin-top: 3rem; /* More space above footer */
+    margin-top: 3rem;
     border-top: 1px solid var(--pico-muted-border-color);
     color: var(--pico-secondary);
 }

@@ -13,6 +13,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/custom.css') }}">
 
     <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/fuse.js@7.0.0"></script>
 </head>
 <body>
     <div id="turnstile-challenge-container" class="container" style="text-align: center; padding-top: 3rem;">
@@ -30,8 +31,7 @@
 
     <div id="minerva-app-container" style="display:none;">
         <header class="container">
-            <div class="ascii-art" id="minervaAsciiArtContainer">
-                </div>
+            <div class="ascii-art" id="minervaAsciiArtContainer">{{ minerva_ascii_art }}</div>
             <hgroup>
                 <h1>Minerva Explorador de ICFES</h1>
                 <h2 style="color: var(--pico-secondary); font-weight: 300;">Una herramienta interactiva para el análisis del desempeño académico</h2>
@@ -58,14 +58,7 @@
                         <div id="school-controls" style="display: none;">
                             <label for="school-search">3. Encuentre un Colegio</label>
                             <input type="search" id="school-search" placeholder="Buscar por nombre...">
-                            <label for="top-n-select">Mostrar Top:</label>
-                            <select id="top-n-select">
-                                <option value="0">Todos</option>
-                                <option value="20">20</option>
-                                <option value="50">50</option>
-                                <option value="100">100</option>
-                                <option value="500">500</option>
-                            </select>
+                            <small id="search-status-message" style="display: block; margin-top: 0.25rem; min-height: 1em;"></small>
                             <div id="school-list-container" class="overflow-auto">
                                 <small>Seleccione un periodo y departamento.</small>
                             </div>
@@ -122,7 +115,7 @@
         <footer class="container" style="margin-top: 2rem; padding-top: 1rem; border-top: 1px solid var(--pico-muted-border-color); text-align: center;">
             <small>
                 © <span id="copyright-year"></span> Santiago Acuña G. | Minerva Explorador de ICFES
-                | Datos actualizados por última vez el: <span id="last-updated-placeholder">Cargando...</span>
+                | ¡Datos actualizados por última vez al 2024-2!
             </small>
         </footer>
     </div> <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
