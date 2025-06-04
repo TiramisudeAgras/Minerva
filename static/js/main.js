@@ -211,83 +211,240 @@ const handlePeriodChange = async (event) => {
     } catch (error) { departmentSelect.innerHTML = '<option value="">Error al cargar deptos.</option>'; }
 };
 
+const createLoadingAnimation = (container, department) => {
+    const loadingMessages = [
+        "🔍 Buscando colegios en " + department + "...",
+        "📚 Organizando datos académicos...",
+        "🎓 Preparando resultados...",
+        "📊 Analizando estadísticas...",
+        "🏫 Recopilando información escolar...",
+    ];
+    
+    let messageIndex = 0;
+    const loadingHTML = `
+        <div style="text-align:center; padding:2rem;">
+            <article aria-busy="true" style="margin-bottom:1rem;"></article>
+            <h5 id="loading-message" style="color: var(--minerva-yellow); margin-bottom:0.5rem;">
+                ${loadingMessages[0]}
+            </h5>
+            <p id="loading-progress" style="font-size:1.2rem; font-weight:500;">
+                Cargando...
+            </p>
+            <progress id="loading-bar" value="0" max="100" style="width:100%; margin-top:1rem;"></progress>
+            <p style="margin-top:0.5rem; color: var(--pico-secondary); font-size:0.9rem;">
+                Dato Curioso: ¡Minerva es la romanización de la diosa griega Atenea!
+            </p>
+        </div>
+    `;
+    
+    container.innerHTML = loadingHTML;
+    
+    // Cambiar mensajes cada 2 segundos
+    const messageInterval = setInterval(() => {
+        messageIndex = (messageIndex + 1) % loadingMessages.length;
+        const messageEl = document.getElementById('loading-message');
+        if (messageEl) {
+            messageEl.textContent = loadingMessages[messageIndex];
+        }
+    }, 2000);
+    
+    return {
+        updateProgress: (loaded, total) => {
+            const progressEl = document.getElementById('loading-progress');
+            const barEl = document.getElementById('loading-bar');
+            if (progressEl && barEl) {
+                const percentage = Math.round((loaded / total) * 100);
+                progressEl.textContent = `${loaded.toLocaleString()} de ${total.toLocaleString()} colegios (${percentage}%)`;
+                barEl.value = percentage;
+            }
+        },
+        destroy: () => {
+            clearInterval(messageInterval);
+        }
+    };
+};
+
 // MODIFICADO: `loadSchoolList` para manejar el estado de carga del input de búsqueda
-const loadSchoolList = async (searchQuery = '') => {
+const loadSchoolList = async () => {
     const department = departmentSelect.value;
     const periodo = periodSelect.value;
     
-    if (!department || !periodo) {
-        if(schoolControls) schoolControls.style.display = 'none';
-        schoolListContainer.innerHTML = '<small>Seleccione periodo y departamento primero.</small>';
-        if (schoolSearch) {
-            schoolSearch.disabled = true;
-            schoolSearch.placeholder = "Seleccione periodo y depto...";
-        }
-        return;
-    }
-    
-    if(schoolControls) schoolControls.style.display = 'block';
-    
-    // NUEVO: No deshabilitar la búsqueda durante la carga
-    if (schoolSearch && !searchQuery) {
-        schoolSearch.disabled = false;
-        schoolSearch.placeholder = "Buscar colegio...";
-    }
-    
-    // Mostrar indicador de carga
-    if (!searchQuery) {
-        schoolListContainer.innerHTML = `<article aria-busy="true" style="text-align:center; padding:1rem;">Cargando top colegios...</article>`;
+    fuseInstance = null; // Resetear instancia de Fuse.js
+    allSchoolsInPeriodDepartment = []; // Limpiar lista anterior
+
+    // Deshabilitar input de búsqueda durante la carga
+    if (schoolSearch) {
+        schoolSearch.disabled = true;
+        schoolSearch.placeholder = "Cargando colegios...";
+        schoolSearch.value = ''; // Limpiar búsquedas anteriores
     }
     
     resultsContainer.style.display = 'none';
 
-    const encodedDepartment = encodeURIComponent(department);
-    let url = `/api/schools/${periodo}/${encodedDepartment}?limit=50`;
-    
-    if (searchQuery) {
-        url += `&q=${encodeURIComponent(searchQuery)}`;
+    if (!department || !periodo) {
+        if(schoolControls) schoolControls.style.display = 'none';
+        schoolListContainer.innerHTML = '<small>Seleccione periodo y departamento primero.</small>';
+        if (schoolSearch) schoolSearch.placeholder = "Seleccione periodo y depto...";
+        return;
     }
+    
+    if(schoolControls) schoolControls.style.display = 'block';
 
+    // Crear animación de carga
+    const loadingAnimation = createLoadingAnimation(schoolListContainer, department);
+    
+    const encodedDepartment = encodeURIComponent(department);
+    
     try {
-        const response = await fetchData(url);
+        // Primero, obtener información sobre el total de escuelas
+        const infoUrl = `/api/schools/${periodo}/${encodedDepartment}?page=1&per_page=1`;
+        const infoResponse = await fetchData(infoUrl);
+        const totalSchools = infoResponse.pagination.total;
         
-        // Manejar la nueva respuesta
-        let schools = response.schools || response; // Compatibilidad con formato anterior
-        
-        if (searchQuery && response.total_results > response.displayed_results) {
-            // Mostrar mensaje si hay más resultados
-            const moreResults = response.total_results - response.displayed_results;
-            schoolListContainer.innerHTML = `<p style="padding:0.5rem; text-align:center; background-color: var(--pico-card-background-color);"><small>Mostrando ${response.displayed_results} de ${response.total_results} resultados. Refine su búsqueda para ver más.</small></p>`;
-            renderSchoolList(schools, true); // true = append to existing content
+        // Si hay menos de 500 escuelas, cargar todo de una vez
+        if (totalSchools <= 500) {
+            const url = `/api/schools/${periodo}/${encodedDepartment}?load_all=true`;
+            const response = await fetchData(url);
+            allSchoolsInPeriodDepartment = response.schools;
+            loadingAnimation.updateProgress(totalSchools, totalSchools);
         } else {
-            renderSchoolList(schools);
+            // Cargar por páginas para departamentos grandes
+            let allSchools = [];
+            let page = 1;
+            const perPage = 500;
+            const totalPages = Math.ceil(totalSchools / perPage);
+            
+            while (page <= totalPages) {
+                const url = `/api/schools/${periodo}/${encodedDepartment}?page=${page}&per_page=${perPage}`;
+                
+                try {
+                    const response = await fetchData(url);
+                    allSchools = allSchools.concat(response.schools);
+                    
+                    // Actualizar progreso
+                    loadingAnimation.updateProgress(allSchools.length, totalSchools);
+                    
+                    // Pequeña pausa para no saturar el servidor
+                    if (page < totalPages) {
+                        await new Promise(resolve => setTimeout(resolve, 100));
+                    }
+                    
+                    page++;
+                } catch (error) {
+                    console.error(`Error cargando página ${page}:`, error);
+                    // Continuar con lo que tenemos
+                    break;
+                }
+            }
+            
+            allSchoolsInPeriodDepartment = allSchools;
+        }
+
+        // Destruir animación de carga
+        loadingAnimation.destroy();
+
+        // Verificar si las escuelas tienen raw_name
+        if (allSchoolsInPeriodDepartment.length > 0 && !allSchoolsInPeriodDepartment[0].raw_name) {
+            console.warn("Schools don't have raw_name field, search might not work properly");
+        }
+
+        // Inicializar Fuse.js para búsqueda
+        if (typeof Fuse === 'undefined') {
+            console.error("Fuse.js no está cargado. La búsqueda inteligente no funcionará.");
+            if (schoolSearch) {
+                schoolSearch.placeholder = "Búsqueda no disponible";
+            }
+        } else {
+            const fuseOptions = {
+                keys: ['raw_name', 'name'], // Buscar en ambos campos
+                includeScore: true, 
+                threshold: 0.4, 
+                minMatchCharLength: 2,
+                shouldSort: true // Ordenar por relevancia
+            };
+            fuseInstance = new Fuse(allSchoolsInPeriodDepartment, fuseOptions);
+            console.log(`Fuse.js inicializado con ${allSchoolsInPeriodDepartment.length} colegios`);
         }
         
+        // Mostrar lista inicial
+        displayInitialSchoolList();
+        
+        // Habilitar búsqueda
+        if (schoolSearch) {
+            schoolSearch.disabled = false;
+            schoolSearch.placeholder = `Buscar entre ${allSchoolsInPeriodDepartment.length} colegios...`;
+            schoolSearch.focus(); // Dar foco al campo de búsqueda
+        }
+
     } catch (error) {
         console.error("Error loading schools:", error);
-        schoolListContainer.innerHTML = '<small>Error al cargar los colegios. Intente de nuevo.</small>';
+        loadingAnimation.destroy();
+        schoolListContainer.innerHTML = `
+            <div style="text-align:center; padding:2rem;">
+                <p style="color: var(--pico-color);">😕 Error al cargar los colegios</p>
+                <p><small>${error.message}</small></p>
+                <button onclick="loadSchoolList()" style="margin-top:1rem;">Reintentar</button>
+            </div>
+        `;
+        if (schoolSearch) {
+            schoolSearch.disabled = true;
+            schoolSearch.placeholder = "Error al cargar colegios";
+        }
     }
 };
 
 const handleSchoolSearch = () => {
     clearTimeout(searchDebounceTimer);
     searchDebounceTimer = setTimeout(() => {
-        if (!schoolSearch || !departmentSelect.value || !periodSelect.value) {
+        if (!schoolSearch || schoolSearch.disabled) {
             return;
         }
 
-        const searchTerm = schoolSearch.value.trim();
+        const searchTerm = schoolSearch.value.trim().toLowerCase();
 
         if (!searchTerm) {
-            // Si no hay búsqueda, cargar top 50
-            loadSchoolList();
+            displayInitialSchoolList();
             return;
         }
 
-        // Si hay al menos 2 caracteres, buscar
-        if (searchTerm.length >= 2) {
-            schoolListContainer.innerHTML = `<article aria-busy="true" style="text-align:center; padding:0.5rem;">Buscando "${searchTerm}"...</article>`;
-            loadSchoolList(searchTerm);
+        // Mostrar indicador de búsqueda
+        const searchingIndicator = document.createElement('p');
+        searchingIndicator.style.cssText = 'text-align:center; padding:0.5rem; color: var(--minerva-yellow);';
+        searchingIndicator.textContent = '🔍 Buscando...';
+        schoolListContainer.insertBefore(searchingIndicator, schoolListContainer.firstChild);
+
+        if (fuseInstance) {
+            const fuseResults = fuseInstance.search(searchTerm);
+            const filteredSchools = fuseResults.map(result => result.item);
+            
+            // Remover indicador de búsqueda
+            if (searchingIndicator.parentNode) {
+                searchingIndicator.remove();
+            }
+            
+            // Mostrar más resultados en búsquedas (hasta 100)
+            renderSchoolList(filteredSchools.slice(0, 100));
+            
+            // Si hay muchos resultados, mostrar mensaje
+            if (filteredSchools.length > 100) {
+                const moreMsg = document.createElement('p');
+                moreMsg.style.cssText = 'text-align:center; padding:1rem; color: var(--pico-secondary);';
+                moreMsg.innerHTML = `<small>Mostrando 100 de ${filteredSchools.length} resultados. Sea más específico para mejores resultados.</small>`;
+                schoolListContainer.appendChild(moreMsg);
+            }
+        } else {
+            // Fallback: búsqueda simple
+            const filteredSchools = allSchoolsInPeriodDepartment.filter(school => {
+                const searchInRawName = school.raw_name && school.raw_name.toLowerCase().includes(searchTerm);
+                const searchInName = school.name && school.name.toLowerCase().includes(searchTerm);
+                return searchInRawName || searchInName;
+            });
+            
+            if (searchingIndicator.parentNode) {
+                searchingIndicator.remove();
+            }
+            
+            renderSchoolList(filteredSchools.slice(0, 100));
         }
     }, 300); // 300ms debounce
 };
