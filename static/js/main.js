@@ -186,13 +186,21 @@ const renderEvolutionChart = (historicalDataOriginalOrder) => { /* Sin cambios *
 
 const handlePeriodChange = async (event) => {
     const periodo = event.target.value;
+    
+    // NUEVO: Si no hay periodo, no hacer nada
+    if (!periodo) {
+        departmentSelect.innerHTML = '<option value="" selected>Primero seleccione un periodo</option>';
+        departmentSelect.disabled = true;
+        return;
+    }
+    
+    departmentSelect.disabled = false;
     departmentSelect.innerHTML = '<option value="">Cargando departamentos...</option>';
     if(departmentSelectLabel) departmentSelectLabel.style.display = 'none';
-    if(schoolControls) schoolControls.style.display = 'none'; // Ocultar controles de colegio
+    if(schoolControls) schoolControls.style.display = 'none';
     resultsContainer.style.display = 'none';
     schoolListContainer.innerHTML = '<small>Seleccione un departamento.</small>';
     
-    // **NUEVO: Deshabilitar y limpiar búsqueda al cambiar periodo**
     if (schoolSearch) {
         schoolSearch.value = '';
         schoolSearch.disabled = true;
@@ -201,14 +209,57 @@ const handlePeriodChange = async (event) => {
     fuseInstance = null;
     allSchoolsInPeriodDepartment = [];
 
-    if (!periodo) return;
     try {
         const departments = await fetchData(`/api/departments/${periodo}`);
         departmentSelect.innerHTML = '<option value="" selected>Seleccione un departamento</option>';
-        departments.forEach(dept => { const opt=document.createElement('option'); opt.value=dept; opt.textContent=dept; departmentSelect.appendChild(opt); });
+        departments.forEach(dept => { 
+            const opt = document.createElement('option'); 
+            opt.value = dept; 
+            opt.textContent = dept; 
+            departmentSelect.appendChild(opt); 
+        });
         if(departmentSelectLabel) departmentSelectLabel.style.display = 'block';
         departmentSelect.style.display = 'block';
-    } catch (error) { departmentSelect.innerHTML = '<option value="">Error al cargar deptos.</option>'; }
+    } catch (error) { 
+        departmentSelect.innerHTML = '<option value="">Error al cargar deptos.</option>'; 
+    }
+};
+
+// ADICIONAL: Guardar el estado en sessionStorage para prevenir pérdidas
+const saveFormState = () => {
+    const state = {
+        periodo: periodSelect.value,
+        department: departmentSelect.value,
+        timestamp: Date.now()
+    };
+    sessionStorage.setItem('minerva_form_state', JSON.stringify(state));
+};
+
+const restoreFormState = () => {
+    const savedState = sessionStorage.getItem('minerva_form_state');
+    if (savedState) {
+        try {
+            const state = JSON.parse(savedState);
+            // Solo restaurar si fue guardado en los últimos 30 minutos
+            if (Date.now() - state.timestamp < 30 * 60 * 1000) {
+                if (state.periodo && periodSelect.querySelector(`option[value="${state.periodo}"]`)) {
+                    periodSelect.value = state.periodo;
+                    // Trigger change event to load departments
+                    periodSelect.dispatchEvent(new Event('change'));
+                    
+                    // Esperar y luego seleccionar departamento
+                    setTimeout(() => {
+                        if (state.department && departmentSelect.querySelector(`option[value="${state.department}"]`)) {
+                            departmentSelect.value = state.department;
+                            departmentSelect.dispatchEvent(new Event('change'));
+                        }
+                    }, 1000);
+                }
+            }
+        } catch (e) {
+            console.error("Error restoring form state:", e);
+        }
+    }
 };
 
 const createLoadingAnimation = (container, department) => {
@@ -455,6 +506,16 @@ const handleSchoolClick = async (event) => {
     const target = event.target.closest('.school-list-item'); 
     if (!target) return;
     
+    // NUEVO: Validar que periodo y department tengan valores
+    const periodo = periodSelect.value;
+    const department = departmentSelect.value;
+    
+    if (!periodo || !department) {
+        console.error("Missing periodo or department:", { periodo, department });
+        resultsContent.innerHTML = `<p class="error">Error: Debe seleccionar un periodo y departamento antes de ver detalles.</p>`;
+        return;
+    }
+    
     resultsContainer.style.display = 'block'; 
     resultsContent.innerHTML = ''; 
     if(mainLoader) mainLoader.style.display = 'block';
@@ -462,15 +523,15 @@ const handleSchoolClick = async (event) => {
     resultsContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
     
     try {
-        const periodo = periodSelect.value; 
-        const department = departmentSelect.value; 
         const schoolId = target.dataset.id;
         
-        // Debug: Log the school ID components
+        // Debug: Log para verificar valores
+        console.log("Periodo:", periodo);
+        console.log("Department:", department);
         console.log("School ID:", schoolId);
         console.log("School ID parts:", schoolId.split("|"));
         
-        // Ensure proper encoding
+        // Asegurar codificación correcta
         const encodedDepartment = encodeURIComponent(department);
         const encodedSchoolId = encodeURIComponent(schoolId);
         
@@ -504,6 +565,7 @@ const initializeApp = async () => {
     if(controlsContainer) controlsContainer.style.display = 'none';
     
     try {
+        // 1. PRIMERO: Cargar los periodos
         const periods = await fetchData('/api/periods');
         if(initialLoader) initialLoader.style.display = 'none'; 
         if(controlsContainer) controlsContainer.style.display = 'block';
@@ -522,20 +584,39 @@ const initializeApp = async () => {
         }
     } catch (error) { 
         if(initialLoader) initialLoader.innerHTML = 'Error al cargar periodos. Intente recargar.'; 
+        return; // No continuar si no se pueden cargar los periodos
     }
 
-    periodSelect.addEventListener('change', handlePeriodChange);
-    
-    departmentSelect.addEventListener('change', () => {
-        schoolSearch.value = '';
-        loadSchoolList(); // Cargar top 50 inicial
+    // 2. SEGUNDO: Agregar todos los event listeners
+    // Event listener para cambio de periodo (con guardado de estado)
+    periodSelect.addEventListener('change', (e) => {
+        handlePeriodChange(e);
+        saveFormState();
     });
     
+    // Event listener para cambio de departamento (con guardado de estado)
+    departmentSelect.addEventListener('change', () => {
+        schoolSearch.value = '';
+        fuseInstance = null;
+        allSchoolsInPeriodDepartment = [];
+        if (schoolSearch) {
+            schoolSearch.disabled = true;
+            schoolSearch.placeholder = "Cargando colegios...";
+        }
+        loadSchoolList();
+        saveFormState();
+    });
+    
+    // Event listener para búsqueda de escuelas
     schoolSearch.addEventListener('input', handleSchoolSearch);
+    
+    // Event listener para click en escuela
     schoolListContainer.addEventListener('click', handleSchoolClick);
+    
+    // Event listeners para las pestañas
     tabs.forEach(tab => tab.addEventListener('click', handleTabClick));
 
-    // Manejar navegación por hash
+    // 3. TERCERO: Manejar navegación por hash/pestañas
     const currentHash = window.location.hash.substring(1); 
     const targetTab = currentHash || 'explorar';
     tabs.forEach(t => t.classList.remove('active')); 
@@ -552,4 +633,10 @@ const initializeApp = async () => {
         const defCont = document.getElementById('explorar');
         if(defCont) defCont.classList.add('active');
     }
+    
+    // 4. CUARTO: Intentar restaurar el estado guardado (si existe)
+    // Esto debe ir AL FINAL para que todos los listeners ya estén configurados
+    setTimeout(() => {
+        restoreFormState();
+    }, 100); // Pequeño delay para asegurar que todo esté listo
 };
