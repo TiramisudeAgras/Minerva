@@ -320,116 +320,116 @@ const loadSchoolList = async () => {
     const department = departmentSelect.value;
     const periodo = periodSelect.value;
     
-    fuseInstance = null; // Resetear instancia de Fuse.js
-    allSchoolsInPeriodDepartment = []; // Limpiar lista anterior
-
-    // Deshabilitar input de búsqueda durante la carga
-    if (schoolSearch) {
-        schoolSearch.disabled = true;
-        schoolSearch.placeholder = "Cargando colegios...";
-        schoolSearch.value = ''; // Limpiar búsquedas anteriores
-    }
-    
-    resultsContainer.style.display = 'none';
+    fuseInstance = null;
+    allSchoolsInPeriodDepartment = [];
 
     if (!department || !periodo) {
         if(schoolControls) schoolControls.style.display = 'none';
         schoolListContainer.innerHTML = '<small>Seleccione periodo y departamento primero.</small>';
-        if (schoolSearch) schoolSearch.placeholder = "Seleccione periodo y depto...";
+        if (schoolSearch) {
+            schoolSearch.disabled = true;
+            schoolSearch.placeholder = "Seleccione periodo y depto...";
+        }
         return;
     }
     
     if(schoolControls) schoolControls.style.display = 'block';
-
-    // Crear animación de carga
-    const loadingAnimation = createLoadingAnimation(schoolListContainer, department);
+    
+    // CAMBIO CLAVE: Habilitar búsqueda inmediatamente
+    if (schoolSearch) {
+        schoolSearch.disabled = false;
+        schoolSearch.value = '';
+        schoolSearch.placeholder = "Cargando top colegios...";
+    }
     
     const encodedDepartment = encodeURIComponent(department);
     
+    // Mostrar indicador de carga
+    schoolListContainer.innerHTML = `<article aria-busy="true" style="text-align:center; padding:1rem;">Cargando mejores colegios...</article>`;
+    resultsContainer.style.display = 'none';
+
     try {
-        // Primero, obtener información sobre el total de escuelas
-        const infoUrl = `/api/schools/${periodo}/${encodedDepartment}?page=1&per_page=1`;
-        const infoResponse = await fetchData(infoUrl);
-        const totalSchools = infoResponse.pagination.total;
+        // CAMBIO CLAVE: Cargar solo primera página (100 colegios)
+        const firstPageUrl = `/api/schools/${periodo}/${encodedDepartment}?page=1&per_page=100`;
+        const firstResponse = await fetchData(firstPageUrl);
         
-        // Si hay menos de 500 escuelas, cargar todo de una vez
-        if (totalSchools <= 500) {
-            const url = `/api/schools/${periodo}/${encodedDepartment}?load_all=true`;
-            const response = await fetchData(url);
-            allSchoolsInPeriodDepartment = response.schools;
-            loadingAnimation.updateProgress(totalSchools, totalSchools);
-        } else {
-            // Cargar por páginas para departamentos grandes
-            let allSchools = [];
-            let page = 1;
-            const perPage = 500;
-            const totalPages = Math.ceil(totalSchools / perPage);
+        allSchoolsInPeriodDepartment = firstResponse.schools;
+        const totalSchools = firstResponse.pagination.total;
+        
+        // Mostrar resultados inmediatamente
+        renderSchoolList(firstResponse.schools);
+        
+        // Si hay más colegios, agregar botón para cargar todos
+        if (totalSchools > 100) {
+            const loadMoreDiv = document.createElement('div');
+            loadMoreDiv.id = 'load-more-container';
+            loadMoreDiv.style.cssText = 'text-align:center; padding:1.5rem; background-color: var(--pico-card-background-color); border-radius: var(--pico-border-radius); margin-top:1rem;';
+            loadMoreDiv.innerHTML = `
+                <p style="margin-bottom:1rem;">
+                    <strong>Mostrando top 100 de ${totalSchools.toLocaleString()} colegios</strong><br>
+                    <small style="color: var(--pico-secondary);">Para buscar entre TODOS los colegios, cargue la lista completa</small>
+                </p>
+                <button id="load-all-schools" style="margin:0 auto;">
+                    🔍 Cargar todos para búsqueda completa
+                </button>
+            `;
+            schoolListContainer.appendChild(loadMoreDiv);
             
-            while (page <= totalPages) {
-                const url = `/api/schools/${periodo}/${encodedDepartment}?page=${page}&per_page=${perPage}`;
+            // Inicializar Fuse con datos parciales
+            if (typeof Fuse !== 'undefined') {
+                fuseInstance = new Fuse(allSchoolsInPeriodDepartment, {
+                    keys: ['raw_name', 'name'],
+                    threshold: 0.4,
+                    minMatchCharLength: 2
+                });
+                schoolSearch.placeholder = `Buscar en top 100 (o cargar todos)`;
+            }
+            
+            // Evento para cargar todos
+            document.getElementById('load-all-schools').addEventListener('click', async () => {
+                const button = document.getElementById('load-all-schools');
+                button.disabled = true;
                 
-                try {
-                    const response = await fetchData(url);
-                    allSchools = allSchools.concat(response.schools);
-                    
-                    // Actualizar progreso
-                    loadingAnimation.updateProgress(allSchools.length, totalSchools);
-                    
-                    // Pequeña pausa para no saturar el servidor
-                    if (page < totalPages) {
-                        await new Promise(resolve => setTimeout(resolve, 100));
-                    }
-                    
-                    page++;
-                } catch (error) {
-                    console.error(`Error cargando página ${page}:`, error);
-                    // Continuar con lo que tenemos
-                    break;
+                // Crear animación de carga mejorada
+                loadMoreDiv.innerHTML = `
+                    <article aria-busy="true"></article>
+                    <p style="margin:1rem 0;">
+                        <strong id="loading-status">Cargando resto de colegios...</strong><br>
+                        <small>Esto puede tomar un momento para departamentos grandes</small>
+                    </p>
+                    <progress id="loading-progress" value="0" max="100" style="width:100%;"></progress>
+                    <p id="loading-count" style="margin-top:0.5rem; font-size:0.9rem;">
+                        ${allSchoolsInPeriodDepartment.length} de ${totalSchools} colegios
+                    </p>
+                `;
+                
+                // Cargar páginas restantes
+                await loadRemainingSchools(periodo, encodedDepartment, 2, firstResponse.pagination);
+                
+                // Remover el contenedor de carga
+                loadMoreDiv.remove();
+                
+                // Actualizar placeholder
+                if (schoolSearch) {
+                    schoolSearch.placeholder = `Buscar entre ${allSchoolsInPeriodDepartment.length} colegios...`;
                 }
-            }
-            
-            allSchoolsInPeriodDepartment = allSchools;
-        }
-
-        // Destruir animación de carga
-        loadingAnimation.destroy();
-
-        // Verificar si las escuelas tienen raw_name
-        if (allSchoolsInPeriodDepartment.length > 0 && !allSchoolsInPeriodDepartment[0].raw_name) {
-            console.warn("Schools don't have raw_name field, search might not work properly");
-        }
-
-        // Inicializar Fuse.js para búsqueda
-        if (typeof Fuse === 'undefined') {
-            console.error("Fuse.js no está cargado. La búsqueda inteligente no funcionará.");
-            if (schoolSearch) {
-                schoolSearch.placeholder = "Búsqueda no disponible";
-            }
+            });
         } else {
-            const fuseOptions = {
-                keys: ['raw_name', 'name'], // Buscar en ambos campos
-                includeScore: true, 
-                threshold: 0.4, 
-                minMatchCharLength: 2,
-                shouldSort: true // Ordenar por relevancia
-            };
-            fuseInstance = new Fuse(allSchoolsInPeriodDepartment, fuseOptions);
-            console.log(`Fuse.js inicializado con ${allSchoolsInPeriodDepartment.length} colegios`);
+            // Si hay 100 o menos, ya tenemos todos
+            if (typeof Fuse !== 'undefined') {
+                fuseInstance = new Fuse(allSchoolsInPeriodDepartment, {
+                    keys: ['raw_name', 'name'],
+                    threshold: 0.4,
+                    minMatchCharLength: 2
+                });
+            }
+            if (schoolSearch) {
+                schoolSearch.placeholder = `Buscar entre ${totalSchools} colegios...`;
+            }
         }
         
-        // Mostrar lista inicial
-        displayInitialSchoolList();
-        
-        // Habilitar búsqueda
-        if (schoolSearch) {
-            schoolSearch.disabled = false;
-            schoolSearch.placeholder = `Buscar entre ${allSchoolsInPeriodDepartment.length} colegios...`;
-            schoolSearch.focus(); // Dar foco al campo de búsqueda
-        }
-
     } catch (error) {
         console.error("Error loading schools:", error);
-        loadingAnimation.destroy();
         schoolListContainer.innerHTML = `
             <div style="text-align:center; padding:2rem;">
                 <p style="color: var(--pico-color);">😕 Error al cargar los colegios</p>
@@ -441,6 +441,46 @@ const loadSchoolList = async () => {
             schoolSearch.disabled = true;
             schoolSearch.placeholder = "Error al cargar colegios";
         }
+    }
+};
+
+
+const loadRemainingSchools = async (periodo, encodedDepartment, startPage, paginationInfo) => {
+    const totalPages = paginationInfo.total_pages;
+    const totalSchools = paginationInfo.total;
+    
+    for (let page = startPage; page <= totalPages; page++) {
+        try {
+            const url = `/api/schools/${periodo}/${encodedDepartment}?page=${page}&per_page=500`;
+            const response = await fetchData(url);
+            
+            // Agregar nuevos colegios
+            allSchoolsInPeriodDepartment = allSchoolsInPeriodDepartment.concat(response.schools);
+            
+            // Actualizar progreso
+            const progress = Math.round(((page - 1) / (totalPages - 1)) * 100);
+            const progressBar = document.getElementById('loading-progress');
+            const countEl = document.getElementById('loading-count');
+            
+            if (progressBar) progressBar.value = progress;
+            if (countEl) countEl.textContent = `${allSchoolsInPeriodDepartment.length} de ${totalSchools} colegios`;
+            
+            // Pequeña pausa para no saturar
+            await new Promise(resolve => setTimeout(resolve, 50));
+            
+        } catch (error) {
+            console.error(`Error loading page ${page}:`, error);
+            // Continuar con las otras páginas
+        }
+    }
+    
+    // Actualizar Fuse con todos los datos
+    if (typeof Fuse !== 'undefined') {
+        fuseInstance = new Fuse(allSchoolsInPeriodDepartment, {
+            keys: ['raw_name', 'name'],
+            threshold: 0.4,
+            minMatchCharLength: 2
+        });
     }
 };
 
