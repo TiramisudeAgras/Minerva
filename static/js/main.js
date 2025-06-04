@@ -12,7 +12,7 @@ const schoolListContainer = document.getElementById('school-list-container');
 const resultsContainer = document.getElementById('results-container');
 const schoolNameHeader = document.getElementById('school-name-header');
 const resultsContent = document.getElementById('results-content');
-const mainLoader = document.getElementById('loader');
+const mainLoader = document.getElementById('loader'); // Loader for school details view
 const copyrightYearSpan = document.getElementById('copyright-year');
 const tabs = document.querySelectorAll('.tab-link');
 const tabContents = document.querySelectorAll('.tab-content');
@@ -21,26 +21,25 @@ const turnstileChallengeContainer = document.getElementById('turnstile-challenge
 const turnstileStatusMessage = document.getElementById('turnstile-status-message');
 const minervaAppContainer = document.getElementById('minerva-app-container');
 
-const searchStatusMessage = document.getElementById('search-status-message'); // Added
+const searchStatusMessage = document.getElementById('search-status-message');
 
-// --- MODIFIED: Global variables for pagination and loading state ---
+// --- Global variables for pagination and loading state ---
 let allSchoolsInPeriodDepartment = [];
 let fuseInstance = null;
-const DEFAULT_DISPLAY_COUNT = 50; // Used for how many search results to show at once from Fuse
-const SCHOOLS_PER_PAGE = 100; // Chunk size for API requests
+const DEFAULT_DISPLAY_COUNT = 50; // For Fuse search results display
+const SCHOOLS_PER_PAGE = 100; // Must match what create_database.py uses for static JSONs
+const STATIC_DATA_BASE_PATH = '/static/generated_school_data/schools'; // Adjust if your path is different
 
-let currentSchoolListPage = 1;
+let currentSchoolListPage = 1; // Tracks the last successfully fetched page for the current list
 let totalSchoolListPages = 1;
 let totalSchoolsInDepartment = 0;
-let isLoadingMoreSchools = false; // For scroll-triggered or background loading
+let isLoadingMoreSchools = false; 
 let allSchoolsLoadedForDepartment = false;
-// --- END MODIFIED ---
 
 let currentHistogramChartInstance = null;
 let currentEvolutionChartInstance = null;
 let searchDebounceTimer;
 
-// --- NEW: Cycling loading messages ---
 const LOADING_MESSAGES = [
     "Consultando los anales académicos...",
     "Desempolvando los pergaminos del ICFES...",
@@ -51,9 +50,8 @@ const LOADING_MESSAGES = [
 ];
 let cyclingMessageInterval;
 let currentCyclingMessageIndex = 0;
-// --- END NEW ---
 
-// --- Funciones de Turnstile ---
+// --- Funciones de Turnstile --- (Keep as is)
 async function onTurnstileSuccess(token) {
     if (turnstileStatusMessage) {
         turnstileStatusMessage.textContent = "¡Eureka! Verificación exitosa. Cargando Minerva...";
@@ -96,6 +94,7 @@ function onTurnstileError(errorCode) {
     }
 }
 
+
 // --- Funciones Principales de la App ---
 document.addEventListener('DOMContentLoaded', () => {
     if (copyrightYearSpan) copyrightYearSpan.textContent = new Date().getFullYear();
@@ -106,36 +105,40 @@ document.addEventListener('DOMContentLoaded', () => {
     schoolListContainer.addEventListener('scroll', handleSchoolListScroll);
 });
 
-const fetchData = async (url) => {
-    // Keep mainLoader for school details, not for list chunks generally
-    // if(mainLoader) mainLoader.style.display = 'block'; // This might be too intrusive for list loading
+const fetchData = async (url, isJson = true) => { // Added isJson flag
     try {
         const response = await fetch(url);
         if (!response.ok) {
-            let errorData = { message: `Error HTTP ${response.status} en ${url}.` };
-            try { 
-                const jsonError = await response.json(); 
-                errorData.message = jsonError.error || errorData.message; 
-                console.error("Server error response:", jsonError);
+            // For static JSON, a 404 is a common "error" if file doesn't exist
+            if (response.status === 404) {
+                console.warn(`FetchData: Recurso no encontrado (404) en ${url}`);
+                throw new Error(`Recurso no encontrado: ${url.substring(url.lastIndexOf('/') + 1)}`);
             }
-            catch (e) { 
-                console.error("Could not parse error response as JSON");
+            let errorData = { message: `Error HTTP ${response.status} en ${url}.` };
+            if (isJson) {
+                try { 
+                    const jsonError = await response.json(); 
+                    errorData.message = jsonError.error || errorData.message; 
+                    console.error("Server error response (JSON):", jsonError);
+                }
+                catch (e) { 
+                    console.error("Could not parse error response as JSON, or response was not JSON.");
+                     const textError = await response.text(); // Try to get text if not JSON
+                     errorData.message += ` Contenido: ${textError.substring(0,100)}`;
+                }
+            } else {
+                 const textError = await response.text();
+                 errorData.message += ` Contenido: ${textError.substring(0,100)}`;
             }
             throw new Error(errorData.message);
         }
-        return await response.json();
+        return isJson ? await response.json() : await response.text();
     } catch (error) {
-        console.error("Error in fetchData:", error.message);
-        console.error("Failed URL:", url);
-        // Avoid showing main resultsContent error for list loading issues, handle in calling function
-        // if(resultsContent && minervaAppContainer && minervaAppContainer.style.display === 'block') {
-        //     resultsContent.innerHTML = `<p class="error">Error al cargar datos: ${error.message}<br>URL: ${url}<br>Por favor, intente de nuevo o contacte al administrador.</p>`;
-        // }
-        throw error;
-    } finally {
-        // if(mainLoader) mainLoader.style.display = 'none';
+        console.error("Error en fetchData:", error.message);
+        throw error; // Re-throw for the caller to handle
     }
 };
+
 
 const renderSchoolList = (schoolsToDisplay, append = false) => {
     if (!append) {
@@ -152,9 +155,8 @@ const renderSchoolList = (schoolsToDisplay, append = false) => {
             const searchTerm = schoolSearch.value.trim();
             if (searchTerm && !append) {
                 schoolListContainer.innerHTML = '<p style="padding:1rem; text-align:center;"><small>No se encontraron colegios que coincidan con tu búsqueda actual.</small></p>';
-            } else if (!append) {
-                 // This message will be overwritten by cycling loader if it's the initial load
-                // schoolListContainer.innerHTML = '<p style="padding:1rem; text-align:center;"><small>No hay colegios para mostrar o cargar.</small></p>';
+            } else if (!append && !isLoadingMoreSchools) { // Avoid overwriting loading message
+                 // schoolListContainer.innerHTML = '<p style="padding:1rem; text-align:center;"><small>No hay colegios para mostrar.</small></p>';
             }
         }
         return;
@@ -169,25 +171,25 @@ const renderSchoolList = (schoolsToDisplay, append = false) => {
         if (school.rank_departmental != null && school.rank_national != null) {
             rankDisplay = `<span class="rank-slashline"> (Dep: ${school.rank_departmental} / Nac: ${school.rank_national})</span>`;
         }
-        schoolItem.innerHTML = `<h6>${school.name}${rankDisplay}</h6><p>Promedio Global: <strong>${school.mean.toFixed(2)}</strong> (${school.count} estudiantes)</p>`;
+        schoolItem.innerHTML = `<h6>${school.name}${rankDisplay}</h6><p>Promedio Global: <strong>${typeof school.mean === 'number' ? school.mean.toFixed(2) : 'N/D'}</strong> (${school.count} estudiantes)</p>`;
         fragment.appendChild(schoolItem);
     });
     schoolListContainer.appendChild(fragment);
 };
 
-const renderResults = (data) => { 
-    if(mainLoader) mainLoader.style.display = 'block'; // Show loader for details
+const renderResults = (data) => { /* Keep as is */ 
+    if(mainLoader) mainLoader.style.display = 'block';
     const { school_name_display, rank_departmental, rank_national, student_list, benchmarks, performance_levels, histogram_data, historical_evolution } = data;
     let headerRankDisplay = '';
     if (rank_departmental != null && rank_national != null) {
         headerRankDisplay = ` <span class="rank-slashline">(Ranking Dept: ${rank_departmental} / Nac: ${rank_national})</span>`;
     }
     schoolNameHeader.innerHTML = school_name_display + headerRankDisplay;
-    const benchmarksHtml = `<details open><summary>Análisis Comparativo</summary><div class="overflow-auto"><table><thead><tr><th>Materia</th><th>Prom. Colegio</th><th>Prom. Depto.</th><th>Prom. Nacional</th></tr></thead><tbody>${benchmarks.map(b => `<tr><td><span class="math-inline">\{b\.subject\}</td\><td\></span>{b.school_avg.toFixed(2)}</td><td><span class="math-inline">\{b\.dept\_avg\.toFixed\(2\)\}</td\><td\></span>{b.nat_avg.toFixed(2)}</td></tr>`).join('')}</tbody></table></div></details>`;
-    const levelsHtml = `<details><summary>Niveles de Desempeño</summary><div class="overflow-auto"><table><thead><tr><th>Materia</th><th>Nivel 1 (A-)</th><th>Nivel 2 (A1)</th><th>Nivel 3 (A2)</th><th>Nivel 4 (B1/B+)</th></tr></thead><tbody>${performance_levels.map(p => p.type === 'english' ? `<tr><td><span class="math-inline">\{p\.subject\}</td\><td\></span>{p.levels['A-']||0}</td><td><span class="math-inline">\{p\.levels\['A1'\]\|\|0\}</td\><td\></span>{p.levels['A2']||0}</td><td>${(p.levels['B1']||0)+(p.levels['B+']||0)}</td></tr>` : `<tr><td><span class="math-inline">\{p\.subject\}</td\><td\></span>{p.levels['1']||0}</td><td><span class="math-inline">\{p\.levels\['2'\]\|\|0\}</td\><td\></span>{p.levels['3']||0}</td><td>${p.levels['4']||0}</td></tr>`).join('')}</tbody></table></div></details>`;
+    const benchmarksHtml = `<details open><summary>Análisis Comparativo</summary><div class="overflow-auto"><table><thead><tr><th>Materia</th><th>Prom. Colegio</th><th>Prom. Depto.</th><th>Prom. Nacional</th></tr></thead><tbody>${benchmarks.map(b => `<tr><td>${b.subject}</td><td>${b.school_avg.toFixed(2)}</td><td>${b.dept_avg.toFixed(2)}</td><td>${b.nat_avg.toFixed(2)}</td></tr>`).join('')}</tbody></table></div></details>`;
+    const levelsHtml = `<details><summary>Niveles de Desempeño</summary><div class="overflow-auto"><table><thead><tr><th>Materia</th><th>Nivel 1 (A-)</th><th>Nivel 2 (A1)</th><th>Nivel 3 (A2)</th><th>Nivel 4 (B1/B+)</th></tr></thead><tbody>${performance_levels.map(p => p.type === 'english' ? `<tr><td>${p.subject}</td><td>${p.levels['A-']||0}</td><td>${p.levels['A1']||0}</td><td>${p.levels['A2']||0}</td><td>${(p.levels['B1']||0)+(p.levels['B+']||0)}</td></tr>` : `<tr><td>${p.subject}</td><td>${p.levels['1']||0}</td><td>${p.levels['2']||0}</td><td>${p.levels['3']||0}</td><td>${p.levels['4']||0}</td></tr>`).join('')}</tbody></table></div></details>`;
     const histogramHtml = `<details><summary>Distribución Puntajes Globales</summary><div id="histogram-chart-container"><canvas id="histogram-chart"></canvas></div></details>`;
-    const studentsHtml = `<details><summary>Resultados Detallados (${student_list.length})</summary><div class="overflow-auto"><table><thead><tr><th>#</th><th>Nacimiento</th><th>Sexo</th><th>Nacionalidad</th><th>Punt. Global</th><th>Percentil Global</th></tr></thead><tbody>${student_list.map((s, i) => `<tr><td><span class="math-inline">\{i\+1\}</td\><td\></span>{s.estu_fechanacimiento||'N/D'}</td><td><span class="math-inline">\{s\.estu\_genero\|\|'N/D'\}</td\><td\></span>{s.estu_nacionalidad||'N/D'}</td><td><span class="math-inline">\{s\.punt\_global\!\=null?s\.punt\_global\:'N/D'\}</td\><td\></span>{s.percentil_global?s.percentil_global+'%':'N/D'}</td></tr>`).join('')}</tbody></table></div></details>`;
-    const evolutionHtml = `<details><summary>Evolución Histórica</summary><div class="overflow-auto"><div id="evolution-chart-container"><canvas id="evolution-chart"></canvas></div><table><thead><tr><th>Periodo</th><th>Prom. Global</th></tr></thead><tbody>${historical_evolution.map(h => `<tr><td><span class="math-inline">\{h\.periodo\}</td\><td\></span>{h.media === -1 ? 'N/D Periodo' : (h.media === 0 ? 'N/D Colegio' : h.media.toFixed(2))}</td></tr>`).join('')}</tbody></table></div></details>`;
+    const studentsHtml = `<details><summary>Resultados Detallados (${student_list.length})</summary><div class="overflow-auto"><table><thead><tr><th>#</th><th>Nacimiento</th><th>Sexo</th><th>Nacionalidad</th><th>Punt. Global</th><th>Percentil Global</th></tr></thead><tbody>${student_list.map((s, i) => `<tr><td>${i+1}</td><td>${s.estu_fechanacimiento||'N/D'}</td><td>${s.estu_genero||'N/D'}</td><td>${s.estu_nacionalidad||'N/D'}</td><td>${s.punt_global!=null?s.punt_global:'N/D'}</td><td>${s.percentil_global?s.percentil_global+'%':'N/D'}</td></tr>`).join('')}</tbody></table></div></details>`;
+    const evolutionHtml = `<details><summary>Evolución Histórica</summary><div class="overflow-auto"><div id="evolution-chart-container"><canvas id="evolution-chart"></canvas></div><table><thead><tr><th>Periodo</th><th>Prom. Global</th></tr></thead><tbody>${historical_evolution.map(h => `<tr><td>${h.periodo}</td><td>${h.media === -1 ? 'N/D Periodo' : (h.media === 0 ? 'N/D Colegio' : h.media.toFixed(2))}</td></tr>`).join('')}</tbody></table></div></details>`;
     resultsContent.innerHTML = benchmarksHtml + levelsHtml + histogramHtml + studentsHtml + evolutionHtml;
     renderHistogramChart(histogram_data);
     renderEvolutionChart(historical_evolution);
@@ -203,7 +205,7 @@ const handlePeriodChange = async (event) => {
     if(departmentSelectLabel) departmentSelectLabel.style.display = 'none';
     if(schoolControls) schoolControls.style.display = 'none';
     resultsContainer.style.display = 'none';
-    schoolListContainer.innerHTML = '<small>Seleccione un departamento.</small>';
+    if (schoolListContainer) schoolListContainer.innerHTML = '<small>Seleccione un departamento.</small>';
     
     if (schoolSearch) {
         schoolSearch.value = '';
@@ -219,10 +221,11 @@ const handlePeriodChange = async (event) => {
     totalSchoolsInDepartment = 0;
     allSchoolsLoadedForDepartment = false;
     isLoadingMoreSchools = false;
-    stopCyclingLoadingAnimation(); // Stop if it was running
+    stopCyclingLoadingAnimation();
 
     if (!periodo) return;
     try {
+        // This API call for departments could also be a static JSON if departments per period are fixed
         const departments = await fetchData(`/api/departments/${periodo}`);
         departmentSelect.innerHTML = '<option value="" selected>Seleccione un departamento</option>';
         departments.forEach(dept => { const opt=document.createElement('option'); opt.value=dept; opt.textContent=dept; departmentSelect.appendChild(opt); });
@@ -236,7 +239,6 @@ function startCyclingLoadingAnimation(initialMessage = "Cargando...") {
     currentCyclingMessageIndex = 0;
     const messageToShow = LOADING_MESSAGES[currentCyclingMessageIndex] || initialMessage;
     
-    // Ensure schoolListContainer is empty before putting loader message
     if (schoolListContainer) schoolListContainer.innerHTML = ''; 
     
     const loaderArticle = document.createElement('article');
@@ -251,8 +253,8 @@ function startCyclingLoadingAnimation(initialMessage = "Cargando...") {
     loaderArticle.appendChild(messageParagraph);
     if (schoolListContainer) schoolListContainer.appendChild(loaderArticle);
     
-    const messageElement = document.getElementById('cycling-loader-message'); // Get it after it's added
-    if (!messageElement) return;
+    const messageElement = document.getElementById('cycling-loader-message');
+    if (!messageElement) { console.error("cycling-loader-message element not found after creation"); return; }
 
     cyclingMessageInterval = setInterval(() => {
         currentCyclingMessageIndex = (currentCyclingMessageIndex + 1) % LOADING_MESSAGES.length;
@@ -262,29 +264,28 @@ function startCyclingLoadingAnimation(initialMessage = "Cargando...") {
 
 function stopCyclingLoadingAnimation() {
     clearInterval(cyclingMessageInterval);
-    // The schoolListContainer will be cleared by renderSchoolList or before rendering new content
 }
 
-const loadSchoolList = async () => { // This function now INITIATES the loading process
+const loadSchoolList = async () => { 
     const department = departmentSelect.value;
     const periodo = periodSelect.value;
 
     allSchoolsInPeriodDepartment = [];
     fuseInstance = null;
-    currentSchoolListPage = 1;
+    currentSchoolListPage = 1; // Reset to page 1 for new selection
     totalSchoolListPages = 1;
     totalSchoolsInDepartment = 0;
     allSchoolsLoadedForDepartment = false;
-    isLoadingMoreSchools = false;
+    isLoadingMoreSchools = false; 
     stopCyclingLoadingAnimation();
     if (schoolListContainer) schoolListContainer.innerHTML = ''; 
 
     if (schoolSearch) {
         schoolSearch.value = ''; 
         schoolSearch.disabled = true;
-        schoolSearch.placeholder = "Cargando colegios...";
+        schoolSearch.placeholder = "Cargando información...";
     }
-    if (searchStatusMessage) searchStatusMessage.textContent = 'Iniciando carga de colegios...';
+    if (searchStatusMessage) searchStatusMessage.textContent = 'Iniciando carga de metadatos...';
     resultsContainer.style.display = 'none';
 
     if (!department || !periodo) {
@@ -296,17 +297,58 @@ const loadSchoolList = async () => { // This function now INITIATES the loading 
     }
 
     if(schoolControls) schoolControls.style.display = 'block';
-    startCyclingLoadingAnimation(`Cargando colegios para ${department}...`);
+    startCyclingLoadingAnimation(`Obteniendo metadatos para ${department}...`);
 
-    await fetchAndProcessSchoolChunk(periodo, department, 1, true); // Fetch first chunk
+    const encodedDepartment = department.replace(/ /g, '_').replace(/\//g, '_'); // Make it filename safe
+    const metaFileUrl = `${STATIC_DATA_BASE_PATH}/${periodo}/${encodedDepartment}_meta.json`;
+
+    try {
+        const metaData = await fetchData(metaFileUrl);
+        totalSchoolsInDepartment = metaData.total_count;
+        totalSchoolListPages = metaData.total_pages;
+        // SCHOOLS_PER_PAGE is already a global const, metaData.per_page should match it.
+
+        if (totalSchoolsInDepartment === 0 || totalSchoolListPages === 0) {
+            stopCyclingLoadingAnimation();
+            if (schoolListContainer) schoolListContainer.innerHTML = `<p style="padding:1rem; text-align:center;"><small>No hay datos de colegios disponibles para ${department} en el periodo ${periodo}.</small></p>`;
+            if (searchStatusMessage) searchStatusMessage.textContent = 'No hay datos disponibles.';
+            if (schoolSearch) schoolSearch.placeholder = "No hay datos";
+            return;
+        }
+        
+        // Now start fetching the first chunk of actual school data
+        startCyclingLoadingAnimation(`Cargando primera página de colegios para ${department}...`);
+        await fetchAndProcessSchoolChunk(periodo, encodedDepartment, 1, true);
+
+    } catch (error) {
+        console.error(`Error al cargar metadatos desde ${metaFileUrl}:`, error);
+        stopCyclingLoadingAnimation();
+        if (schoolListContainer) schoolListContainer.innerHTML = `<small>Error al cargar información de colegios para ${department}. Es posible que no haya datos pregenerados. (${error.message})</small>`;
+        if (searchStatusMessage) searchStatusMessage.textContent = 'Error al cargar metadatos.';
+        if (schoolSearch) {
+            schoolSearch.placeholder = "Error de carga";
+            schoolSearch.disabled = true;
+        }
+    }
 };
 
-async function fetchAndProcessSchoolChunk(periodo, department, pageToFetch, isInitialCall = false) {
-    if (isLoadingMoreSchools && !isInitialCall) return; 
-    if (allSchoolsLoadedForDepartment && !isInitialCall) return;
+async function fetchAndProcessSchoolChunk(periodo, encodedDepartment, pageToFetch, isInitialOverallCall = false) {
+    // isInitialOverallCall refers to the very first chunk for a new department/period selection
+    
+    // This check prevents re-fetching the same page if multiple triggers (scroll, background) occur closely.
+    // isLoadingMoreSchools is set to true at the start of this function and false at the end.
+    if (isLoadingMoreSchools && !isInitialOverallCall) {
+      // console.log(`fetchAndProcessSchoolChunk: Already loading, request for page ${pageToFetch} ignored.`);
+      return;
+    }
+    if (allSchoolsLoadedForDepartment && !isInitialOverallCall) {
+      // console.log(`fetchAndProcessSchoolChunk: All schools already loaded, request for page ${pageToFetch} ignored.`);
+      return;
+    }
 
-    isLoadingMoreSchools = true;
-    if (!isInitialCall && schoolListContainer) {
+    isLoadingMoreSchools = true; // Set loading flag
+
+    if (!isInitialOverallCall && schoolListContainer) {
         let loadingMoreEl = schoolListContainer.querySelector('.loading-more-schools');
         if (!loadingMoreEl) {
             loadingMoreEl = document.createElement('p');
@@ -316,26 +358,23 @@ async function fetchAndProcessSchoolChunk(periodo, department, pageToFetch, isIn
             schoolListContainer.appendChild(loadingMoreEl);
         }
     }
-    if (searchStatusMessage && pageToFetch > 1) {
-        searchStatusMessage.textContent = `Cargando más colegios (página ${pageToFetch})...`;
+    if (searchStatusMessage && pageToFetch > 1) { // Only update for subsequent pages
+        searchStatusMessage.textContent = `Cargando página ${pageToFetch} de ${totalSchoolListPages}...`;
     }
 
-    const encodedDepartment = encodeURIComponent(department);
-    const url = `/api/schools/${periodo}/${encodedDepartment}?page=${pageToFetch}&per_page=${SCHOOLS_PER_PAGE}`;
+    const pageFileUrl = `${STATIC_DATA_BASE_PATH}/${periodo}/${encodedDepartment}_page_${pageToFetch}.json`;
 
     try {
-        const data = await fetchData(url);
-        const newSchools = data.schools;
-        totalSchoolsInDepartment = data.total_count;
-        totalSchoolListPages = data.total_pages;
-        currentSchoolListPage = data.page; // API returns current page
+        const pageData = await fetchData(pageFileUrl);
+        const newSchools = pageData.schools; // Assuming static JSONs have a "schools" key
 
-        if (isInitialCall) {
+        if (isInitialOverallCall) { // This was the first chunk of a new department selection
             stopCyclingLoadingAnimation();
-            // schoolListContainer.innerHTML = ''; // RenderSchoolList will clear if !append
+            if (schoolListContainer) schoolListContainer.innerHTML = ''; // Clear cycling animation
         }
         
         allSchoolsInPeriodDepartment.push(...newSchools);
+        currentSchoolListPage = pageToFetch; // Update to the page number just fetched
 
         if (typeof Fuse !== 'undefined' && allSchoolsInPeriodDepartment.length > 0) {
             fuseInstance = new Fuse(allSchoolsInPeriodDepartment, {
@@ -346,23 +385,29 @@ async function fetchAndProcessSchoolChunk(periodo, department, pageToFetch, isIn
             console.error("Fuse.js no está cargado.");
         }
         
-        renderSchoolList(newSchools, !isInitialCall); // Append if not initial
+        renderSchoolList(newSchools, !isInitialOverallCall); 
 
         if (currentSchoolListPage >= totalSchoolListPages) {
             allSchoolsLoadedForDepartment = true;
             if (searchStatusMessage) searchStatusMessage.textContent = `Se cargaron todos los ${totalSchoolsInDepartment} colegios.`;
             console.log("Todos los colegios del departamento han sido cargados.");
+            const loadMoreButton = schoolListContainer.querySelector('.load-more-schools-button');
+            if (loadMoreButton) loadMoreButton.remove();
+
         } else {
             if (searchStatusMessage) {
-                searchStatusMessage.textContent = `Mostrando ${allSchoolsInPeriodDepartment.length} de ${totalSchoolsInDepartment} colegios.`;
+                 searchStatusMessage.textContent = `Mostrando ${allSchoolsInPeriodDepartment.length} de ${totalSchoolsInDepartment} colegios.`;
             }
-            if (isInitialCall && !allSchoolsLoadedForDepartment) {
-                setTimeout(() => { // Start background loading for next page
-                    if (!allSchoolsLoadedForDepartment) { // Double check, state might have changed
-                         fetchAndProcessSchoolChunk(periodo, department, pageToFetch + 1);
+            // --- Chain background loading for the next chunk ---
+            if (!allSchoolsLoadedForDepartment) {
+                const nextPageForBackground = currentSchoolListPage + 1;
+                setTimeout(() => { 
+                    if (!isLoadingMoreSchools && !allSchoolsLoadedForDepartment && nextPageForBackground <= totalSchoolListPages) {
+                        fetchAndProcessSchoolChunk(periodo, encodedDepartment, nextPageForBackground, false);
                     }
-                }, 500); // Brief delay
+                }, 250); 
             }
+            // --- End Chain ---
         }
         
         if (schoolSearch && schoolSearch.disabled && allSchoolsInPeriodDepartment.length > 0) {
@@ -371,32 +416,33 @@ async function fetchAndProcessSchoolChunk(periodo, department, pageToFetch, isIn
         }
 
     } catch (error) {
-        console.error(`Error al cargar la página ${pageToFetch} de colegios:`, error);
-        if (isInitialCall) {
+        console.error(`Error al cargar la página de colegios ${pageToFetch} desde ${pageFileUrl}:`, error);
+        if (isInitialOverallCall) {
             stopCyclingLoadingAnimation();
-            if (schoolListContainer) schoolListContainer.innerHTML = '<small>Error al cargar los colegios iniciales. Intente de nuevo.</small>';
+            if (schoolListContainer) schoolListContainer.innerHTML = `<small>Error al cargar la lista inicial de colegios. (${error.message})</small>`;
         }
-        if (searchStatusMessage) searchStatusMessage.textContent = 'Error al cargar datos de colegios.';
+        if (searchStatusMessage) searchStatusMessage.textContent = 'Error al cargar página de colegios.';
     } finally {
         isLoadingMoreSchools = false;
-        const loadingMoreMessage = schoolListContainer.querySelector('.loading-more-schools');
-        if (loadingMoreMessage) { // Ensure it's removed if processing is done for this chunk
-            loadingMoreMessage.remove();
+        const loadingMoreMsgEl = schoolListContainer.querySelector('.loading-more-schools');
+        if (loadingMoreMsgEl) { 
+            loadingMoreMsgEl.remove();
         }
     }
 }
 
 const handleSchoolListScroll = () => {
-    if (isLoadingMoreSchools || allSchoolsLoadedForDepartment || !schoolListContainer) {
+    if (isLoadingMoreSchools || allSchoolsLoadedForDepartment || !schoolListContainer || totalSchoolListPages <= currentSchoolListPage) {
         return;
     }
-    if (schoolListContainer.scrollTop + schoolListContainer.clientHeight >= schoolListContainer.scrollHeight - 300) { // Threshold
-        const nextPageToFetch = currentSchoolListPage + 1; // currentSchoolListPage is the last fetched/processed page
+    if (schoolListContainer.scrollTop + schoolListContainer.clientHeight >= schoolListContainer.scrollHeight - 300) {
+        const nextPageToFetch = currentSchoolListPage + 1;
         if (nextPageToFetch <= totalSchoolListPages) {
             console.log("Scroll detectado, cargando siguiente página:", nextPageToFetch);
             const periodo = periodSelect.value;
             const department = departmentSelect.value;
-            fetchAndProcessSchoolChunk(periodo, department, nextPageToFetch);
+            const encodedDepartment = department.replace(/ /g, '_').replace(/\//g, '_');
+            fetchAndProcessSchoolChunk(periodo, encodedDepartment, nextPageToFetch, false);
         }
     }
 };
@@ -404,33 +450,37 @@ const handleSchoolListScroll = () => {
 const handleSchoolSearch = () => {
     clearTimeout(searchDebounceTimer);
     searchDebounceTimer = setTimeout(() => {
-        if (!schoolSearch) return; // Guard clause
+        if (!schoolSearch) return;
+
+        const existingLoadMoreButton = schoolListContainer.querySelector('.load-more-schools-button');
+        if (existingLoadMoreButton) {
+            existingLoadMoreButton.remove();
+        }
 
         if (schoolSearch.disabled) {
-            if(searchStatusMessage) searchStatusMessage.textContent = "La búsqueda está deshabilitada mientras se cargan datos.";
+            if(searchStatusMessage) searchStatusMessage.textContent = "La búsqueda está deshabilitada.";
             return;
         }
         if (!fuseInstance && allSchoolsInPeriodDepartment.length > 0) {
             if(searchStatusMessage) searchStatusMessage.textContent = "El índice de búsqueda se está preparando...";
-            return; // Fuse instance not ready yet, but schools are loading/loaded
+            return; 
         }
         if (!fuseInstance) {
-            if(searchStatusMessage && schoolListContainer.children.length > 0) searchStatusMessage.textContent = "Índice de búsqueda no disponible.";
-            else if (searchStatusMessage) searchStatusMessage.textContent = "Seleccione periodo y departamento para cargar colegios.";
-            renderSchoolList([], false); // Clear list if no fuse instance
+            if(searchStatusMessage && schoolListContainer && schoolListContainer.children.length > 0) searchStatusMessage.textContent = "Índice de búsqueda no disponible.";
+            else if (searchStatusMessage) searchStatusMessage.textContent = "Seleccione periodo y departamento.";
+            renderSchoolList([], false); 
             return;
         }
 
         const searchTerm = schoolSearch.value.trim().toLowerCase();
 
         if (!searchTerm) {
-            // Show the first DEFAULT_DISPLAY_COUNT of all loaded schools when search is cleared
             renderSchoolList(allSchoolsInPeriodDepartment.slice(0, DEFAULT_DISPLAY_COUNT), false);
             if (searchStatusMessage) {
                 if (allSchoolsLoadedForDepartment) {
-                    searchStatusMessage.textContent = `Mostrando los primeros ${Math.min(DEFAULT_DISPLAY_COUNT, allSchoolsInPeriodDepartment.length)} de ${totalSchoolsInDepartment} colegios.`;
+                    searchStatusMessage.textContent = `Mostrando ${Math.min(DEFAULT_DISPLAY_COUNT, allSchoolsInPeriodDepartment.length)} de ${totalSchoolsInDepartment} colegios.`;
                 } else {
-                    searchStatusMessage.textContent = `Mostrando los primeros ${Math.min(DEFAULT_DISPLAY_COUNT, allSchoolsInPeriodDepartment.length)} de ${allSchoolsInPeriodDepartment.length} colegios cargados (de ${totalSchoolsInDepartment} total).`;
+                    searchStatusMessage.textContent = `Mostrando ${Math.min(DEFAULT_DISPLAY_COUNT, allSchoolsInPeriodDepartment.length)} de ${allSchoolsInPeriodDepartment.length} colegios cargados (de ${totalSchoolsInDepartment} total).`;
                 }
             }
             return;
@@ -438,13 +488,48 @@ const handleSchoolSearch = () => {
         
         const fuseResults = fuseInstance.search(searchTerm);
         const filteredSchools = fuseResults.map(result => result.item);
-        renderSchoolList(filteredSchools.slice(0, DEFAULT_DISPLAY_COUNT * 2), false); // Show up to 100 search results
-        if (searchStatusMessage) searchStatusMessage.textContent = `Se encontraron ${filteredSchools.length} colegios para "${searchTerm}". Mostrando hasta ${DEFAULT_DISPLAY_COUNT * 2}.`;
+        renderSchoolList(filteredSchools.slice(0, DEFAULT_DISPLAY_COUNT * 2), false); 
+        
+        if (searchStatusMessage) {
+            searchStatusMessage.textContent = `Se encontraron ${filteredSchools.length} colegios para "${searchTerm}". Mostrando hasta ${DEFAULT_DISPLAY_COUNT * 2}.`;
+        }
+
+        if (filteredSchools.length < 5 && !allSchoolsLoadedForDepartment && !isLoadingMoreSchools) {
+            const loadMoreButton = document.createElement('button');
+            loadMoreButton.textContent = `Cargar más colegios (${allSchoolsInPeriodDepartment.length} de ${totalSchoolsInDepartment} cargados)`;
+            loadMoreButton.className = 'load-more-schools-button outline';
+            loadMoreButton.style.marginTop = '1rem'; loadMoreButton.style.display = 'block';
+            loadMoreButton.style.marginLeft = 'auto'; loadMoreButton.style.marginRight = 'auto';
+
+            loadMoreButton.addEventListener('click', async () => {
+                loadMoreButton.setAttribute('aria-busy', 'true');
+                loadMoreButton.textContent = 'Cargando...';
+                const nextPageToFetch = currentSchoolListPage + 1;
+                if (nextPageToFetch <= totalSchoolListPages) {
+                    const periodo = periodSelect.value;
+                    const department = departmentSelect.value;
+                    const encodedDepartment = department.replace(/ /g, '_').replace(/\//g, '_');
+                    await fetchAndProcessSchoolChunk(periodo, encodedDepartment, nextPageToFetch, false);
+                }
+                if (allSchoolsLoadedForDepartment && loadMoreButton.parentElement) {
+                     loadMoreButton.remove();
+                } else if (loadMoreButton.parentElement) {
+                    loadMoreButton.setAttribute('aria-busy', 'false');
+                     if (!allSchoolsLoadedForDepartment) {
+                        loadMoreButton.textContent = `Cargar más (${allSchoolsInPeriodDepartment.length} de ${totalSchoolsInDepartment} cargados)`;
+                     } else {
+                        loadMoreButton.remove();
+                     }
+                }
+            });
+            if (schoolListContainer) schoolListContainer.appendChild(loadMoreButton);
+        }
 
     }, 300);
 };
 
-const handleSchoolClick = async (event) => {
+
+const handleSchoolClick = async (event) => { /* Keep as is */ 
     event.preventDefault(); 
     const target = event.target.closest('.school-list-item'); 
     if (!target) return;
@@ -457,14 +542,13 @@ const handleSchoolClick = async (event) => {
     
     try {
         const periodo = periodSelect.value; 
-        const department = departmentSelect.value; // department is department_name_param for the API
+        const department = departmentSelect.value; 
         const schoolId = target.dataset.id;
         
-        const encodedDepartment = encodeURIComponent(department);
-        const encodedSchoolId = encodeURIComponent(schoolId); // School ID might contain special chars like '|'
+        const encodedDepartment = encodeURIComponent(department); // Department name for API
+        const encodedSchoolId = encodeURIComponent(schoolId);
         
         const url = `/api/school_details/${periodo}/${encodedDepartment}/${encodedSchoolId}`;
-        console.log("Fetching school details from URL:", url);
         
         const data = await fetchData(url);
         
@@ -488,7 +572,6 @@ const initializeApp = async () => {
     if(controlsContainer) controlsContainer.style.display = 'none';
     if(searchStatusMessage) searchStatusMessage.textContent = '';
 
-
     try {
         const periods = await fetchData('/api/periods');
         if(initialLoader) initialLoader.style.display = 'none'; 
@@ -502,7 +585,7 @@ const initializeApp = async () => {
 
     periodSelect.addEventListener('change', handlePeriodChange);
     departmentSelect.addEventListener('change', () => {
-        loadSchoolList(); // This will reset states and start loading first chunk
+        loadSchoolList(); 
     });
     schoolSearch.addEventListener('input', handleSchoolSearch);
     schoolListContainer.addEventListener('click', handleSchoolClick);
@@ -514,6 +597,3 @@ const initializeApp = async () => {
     if(activeLink){activeLink.classList.add('active');const actCont=document.getElementById(targetTab);if(actCont)actCont.classList.add('active');}
     else{const defLink=document.querySelector('.tab-link[data-tab="explorar"]');if(defLink)defLink.classList.add('active');const defCont=document.getElementById('explorar');if(defCont)defCont.classList.add('active');}
 };
-
-// Ensure onTurnstileSuccess calls initializeApp after verification
-// (already in your original code)

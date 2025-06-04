@@ -5,17 +5,15 @@ import os
 from datetime import datetime
 from collections import defaultdict
 from flask import Flask, jsonify, render_template, request, url_for # Ensure 'request' is here
-import requests # Necesario para la verificación de Turnstile
+import requests 
 import configparser
 from urllib.parse import unquote
 
-# 'thefuzz' ya no se usa aquí, la búsqueda será en el frontend
-# from thefuzz import fuzz
-# from thefuzz import process as fuzz_process
 
 # --- Configuración Global ---
 DATABASE_NAME = 'minerva_icfes_data.db'
 LAST_UPDATED_FILE = 'minerva_last_updated.txt'
+# SCORE_COLUMNS and AVG_SCORE_PRECALCULATED_COLUMNS are used in school_details
 SCORE_COLUMNS = ['punt_global', 'punt_lectura_critica', 'punt_matematicas', 'punt_c_naturales', 'punt_sociales_ciudadanas', 'punt_ingles']
 AVG_SCORE_PRECALCULATED_COLUMNS = {
     'punt_global': 'avg_punt_global',
@@ -26,12 +24,11 @@ AVG_SCORE_PRECALCULATED_COLUMNS = {
     'punt_ingles': 'avg_punt_ingles'
 }
 
-# --- Cargar Clave Secreta de Cloudflare Turnstile ---
+# --- Cargar Clave Secreta de Cloudflare Turnstile --- (Keep as is)
 CLOUDFLARE_TURNSTILE_SECRET_KEY = None
-SECRET_KEY_FILE_PATH = '/home/Chachalingo/mysite/crypto/.config_secrets.ini' # Ruta de PythonAnywhere
+SECRET_KEY_FILE_PATH = '/home/Chachalingo/mysite/crypto/.config_secrets.ini' 
 if not os.path.exists(SECRET_KEY_FILE_PATH) and 'PYTHONANYWHERE_DOMAIN' not in os.environ :
     SECRET_KEY_FILE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.config_secrets.ini')
-
 try:
     config = configparser.ConfigParser()
     if os.path.exists(SECRET_KEY_FILE_PATH) and os.path.getsize(SECRET_KEY_FILE_PATH) > 0:
@@ -42,7 +39,6 @@ try:
         print(f"ADVERTENCIA: Archivo de clave secreta no encontrado o vacío en {SECRET_KEY_FILE_PATH}")
 except Exception as e:
     print(f"Error al leer el archivo de clave secreta ({SECRET_KEY_FILE_PATH}): {e}")
-
 if not CLOUDFLARE_TURNSTILE_SECRET_KEY:
     print("ADVERTENCIA CRÍTICA: La Secret Key de Cloudflare Turnstile NO ESTÁ CARGADA.")
 
@@ -114,11 +110,12 @@ MINERVA_ASCII_ART_FOR_WEB = """
 ▓▓▓░▓▓▓███▓▓▓████▓▓░▓▓██████▓░░▓▓▒▓████▒▓▓▓████▓████████████▓▒██████████████████
 ▓▒▓▓▓▓▓███▓▓▓████████▓████████▓▒▒ ▓▓██▓▓▓████▓▓██▓▓▓███████████▓▒▓██████████████
 ▓▓▓▓▓▓▓███▓▓▓████████▓█████████▓▒▓▒▒▒█▓█▓███▓░▒██▓▓████████████████▓▒▒▓█████████
+    
 """
 
-app = Flask(__name__)
+app = Flask(__name__) # If your generated data is in 'static/generated_data/', Flask serves 'static' by default.
 
-# --- Funciones de Utilidad ---
+# --- Funciones de Utilidad --- (Keep as is)
 def get_db_connection():
     conn = sqlite3.connect(DATABASE_NAME)
     conn.row_factory = sqlite3.Row
@@ -136,7 +133,7 @@ def format_period_display(period_str):
     return period_str
 
 def verify_turnstile_token(turnstile_response_token):
-    if not CLOUDFLARE_TURNSTILE_SECRET_KEY: return True # No verificar si no hay clave
+    if not CLOUDFLARE_TURNSTILE_SECRET_KEY: return True 
     payload = {'secret': CLOUDFLARE_TURNSTILE_SECRET_KEY, 'response': turnstile_response_token}
     try:
         response = requests.post('https://challenges.cloudflare.com/turnstile/v0/siteverify', data=payload, timeout=10)
@@ -158,121 +155,40 @@ def verify_access():
 
 @app.route('/api/periods')
 def get_periods():
+    # This could also become a static JSON file if periods don't change often
     conn = get_db_connection()
+    # Query from school_statistics as it's more direct for available data
     data = conn.execute("SELECT DISTINCT periodo FROM school_statistics ORDER BY periodo DESC").fetchall()
-    if not data: data = conn.execute("SELECT DISTINCT periodo FROM student_results ORDER BY periodo DESC").fetchall()
+    if not data: # Fallback if school_statistics is empty for some reason
+        data = conn.execute("SELECT DISTINCT periodo FROM student_results ORDER BY periodo DESC").fetchall()
     conn.close()
     return jsonify([{'value': str(r['periodo']), 'display': format_period_display(str(r['periodo']))} for r in data])
 
 @app.route('/api/departments/<periodo>')
 def get_departments_for_period(periodo):
+    # This could also become a static JSON file per periodo
     conn = get_db_connection()
     data = conn.execute("SELECT DISTINCT cole_depto_ubicacion_norm FROM school_statistics WHERE periodo = ? AND cole_depto_ubicacion_norm IS NOT NULL ORDER BY cole_depto_ubicacion_norm ASC", (periodo,)).fetchall()
     conn.close()
     return jsonify([r['cole_depto_ubicacion_norm'] for r in data])
 
-@app.route('/api/schools/<periodo>/<department_name>')
-def get_schools_for_department_period(periodo, department_name):
-    conn = get_db_connection()
-
-    page = request.args.get('page', 1, type=int)
-    # Use a larger per_page for initial load if desired, or keep consistent
-    per_page = request.args.get('per_page', 100, type=int) # Default 100 schools per chunk
-    offset = (page - 1) * per_page
-
-    # Query to get total count of unique schools for the given filters
-    # The unique identifier for a school in school_statistics seems to be the combination used in its PRIMARY KEY
-    count_query_sql = """
-        SELECT COUNT(*) as total_count
-        FROM school_statistics ss
-        WHERE ss.periodo = ? AND ss.cole_depto_ubicacion_norm = ?
-              AND ss.cole_nombre_establecimiento IS NOT NULL AND TRIM(ss.cole_nombre_establecimiento) != ''
-              AND ss.avg_punt_global IS NOT NULL
-    """
-    total_count_result = conn.execute(count_query_sql, (periodo, department_name)).fetchone()
-    total_count = total_count_result['total_count'] if total_count_result else 0
-    
-    total_pages = (total_count + per_page - 1) // per_page if per_page > 0 else 0
-
-
-    select_cols = """
-        ss.cole_nombre_establecimiento, ss.cole_mcpio_ubicacion, ss.cole_naturaleza,
-        ss.cole_calendario, ss.cole_depto_ubicacion_norm,
-        COALESCE(sr_distinct.cole_genero, '') as cole_genero, /* Ensure this join is efficient or consider removing if not critical for list */
-        ss.avg_punt_global as promedio_global,
-        ss.student_count as num_estudiantes,
-        ss.rank_departmental, ss.rank_national
-    """
-    # The join for cole_genero might be slow if sr_distinct is large and not well-indexed for this join.
-    # For a paginated list, consider if cole_genero is essential for the list view or can be fetched on detail view.
-    # If it is kept, ensure relevant columns in student_results are indexed.
-    join_for_genero = """
-    LEFT JOIN (
-        SELECT DISTINCT cole_nombre_establecimiento, cole_mcpio_ubicacion, cole_naturaleza,
-                        cole_calendario, periodo, cole_depto_ubicacion_norm, cole_genero
-        FROM student_results WHERE cole_genero IS NOT NULL AND TRIM(cole_genero) != ''
-    ) sr_distinct ON ss.cole_nombre_establecimiento = sr_distinct.cole_nombre_establecimiento
-               AND ss.cole_mcpio_ubicacion = sr_distinct.cole_mcpio_ubicacion
-               AND ss.cole_naturaleza = sr_distinct.cole_naturaleza
-               AND ss.cole_calendario = sr_distinct.cole_calendario
-               AND ss.periodo = sr_distinct.periodo
-               AND ss.cole_depto_ubicacion_norm = sr_distinct.cole_depto_ubicacion_norm
-    """
-    query_sql = f"""
-        SELECT {select_cols} FROM school_statistics ss {join_for_genero}
-        WHERE ss.periodo = ? AND ss.cole_depto_ubicacion_norm = ?
-              AND ss.cole_nombre_establecimiento IS NOT NULL AND TRIM(ss.cole_nombre_establecimiento) != ''
-              AND ss.avg_punt_global IS NOT NULL
-        ORDER BY ss.avg_punt_global DESC
-        LIMIT ? OFFSET ?
-    """
-    all_schools_rows = conn.execute(query_sql, (periodo, department_name, per_page, offset)).fetchall()
-    conn.close()
-
-    schools_list = []
-    for row_data in all_schools_rows:
-        row = dict(row_data)
-        # Define school_id based on the primary key of school_statistics for consistency
-        key_parts = [
-            str(row.get('cole_nombre_establecimiento', '')),
-            str(row.get('cole_mcpio_ubicacion', '')),
-            str(row.get('cole_naturaleza', '')),
-            str(row.get('cole_calendario', '')),
-            str(row.get('cole_depto_ubicacion_norm', '')) # Department is part of the key
-        ]
-        school_id_str = "|".join(key_parts)
-
-        display_parts = [
-            str(row.get('cole_nombre_establecimiento', '')),
-            str(row.get('cole_mcpio_ubicacion', '')),
-            str(row.get('cole_genero', '')), # This comes from the potentially slow join
-            str(row.get('cole_naturaleza', '')),
-            str(row.get('cole_calendario', ''))
-        ]
-        display_name_parts = [p for p in display_parts[1:] if p and p.strip()] # Start from municipio
-        display_name = f"{display_parts[0]} ({' - '.join(display_name_parts)})"
-
-        schools_list.append({
-            'id': school_id_str,
-            'name': display_name, # This is the descriptive name for display
-            'raw_name': row.get('cole_nombre_establecimiento', ''), # For searching
-            'mean': row.get('promedio_global', 0) if row.get('promedio_global') is not None else 0,
-            'count': row.get('num_estudiantes', 0),
-            'rank_departmental': row.get('rank_departmental'),
-            'rank_national': row.get('rank_national')
-        })
-
-    return jsonify({
-        'schools': schools_list,
-        'total_count': total_count,
-        'page': page,
-        'per_page': per_page,
-        'total_pages': total_pages
-    })
+# --- The /api/schools/<periodo>/<department_name> endpoint for LISTING schools is REMOVED ---
+# The frontend will now fetch static JSON files for school lists.
+# If you had specific logic here other than fetching/formatting schools,
+# that might need to be re-evaluated.
+# For example, if you need to serve the _meta.json files via an API endpoint, you could add one:
+# @app.route('/api/schools_meta/<periodo>/<department_name>')
+# def get_schools_meta(periodo, department_name):
+#     # Construct path to meta file, read it, and return its JSON content
+#     # Ensure robust path handling and error checking (file not found, etc.)
+#     # For now, assuming JS constructs direct paths to static files.
+#     pass
 
 
 @app.route('/api/school_details/<periodo>/<department_name_param>/<path:school_id_str>')
 def get_school_details(periodo, department_name_param, school_id_str):
+    # ... (Keep existing get_school_details function as is - it uses the database) ...
+    # This function should be largely unaffected as it fetches details for a *specific* school ID.
     try:
         school_id_str = unquote(school_id_str)
         print(f"Received school details request: periodo={periodo}, dept={department_name_param}, school_id='{school_id_str}'")
@@ -288,13 +204,11 @@ def get_school_details(periodo, department_name_param, school_id_str):
 
         conn = get_db_connection()
         
-        # Verify school exists in student_results to ensure there's data to show
-        # Note: cole_depto_ubicacion_norm in student_results should match cole_depto_colegio_norm from the ID
         verify_query = """
         SELECT COUNT(id) as count 
         FROM student_results 
         WHERE periodo = ? 
-        AND cole_depto_ubicacion_norm = ?  /* This is the department of the school's location */
+        AND cole_depto_ubicacion_norm = ? 
         AND cole_nombre_establecimiento = ?
         AND cole_mcpio_ubicacion = ? 
         AND cole_naturaleza = ? 
@@ -303,7 +217,6 @@ def get_school_details(periodo, department_name_param, school_id_str):
         verify_result = conn.execute(verify_query, (periodo, cole_depto_colegio_norm, cole_nombre, cole_mcpio, cole_nat, cole_cal)).fetchone()
         
         if verify_result is None or verify_result['count'] == 0:
-            # Fallback: Check school_statistics if student_results somehow missed it (should not happen if DB is consistent)
             verify_stats_query = """
             SELECT COUNT(*) as count FROM school_statistics 
             WHERE periodo = ? AND cole_depto_ubicacion_norm = ? AND cole_nombre_establecimiento = ? 
@@ -322,13 +235,12 @@ def get_school_details(periodo, department_name_param, school_id_str):
         student_list = [dict(r) for r in students_data]
         
         bench_res, d_bench, n_bench = [], defaultdict(float), defaultdict(float)
-        # Department benchmark should use cole_depto_colegio_norm which is the school's actual department
         for r in conn.execute("SELECT materia, promedio FROM departmental_benchmarks WHERE periodo = ? AND departamento = ?", (periodo, cole_depto_colegio_norm)).fetchall(): 
             d_bench[r['materia']] = r['promedio']
         for r in conn.execute("SELECT materia, promedio FROM national_benchmarks WHERE periodo = ?", (periodo,)).fetchall(): 
             n_bench[r['materia']] = r['promedio']
         
-        s_stats_cols = ', '.join(AVG_SCORE_PRECALCULATED_COLUMNS.values()) + ", rank_departmental, rank_national" # Add ranks here
+        s_stats_cols = ', '.join(AVG_SCORE_PRECALCULATED_COLUMNS.values()) + ", rank_departmental, rank_national"
         s_stats_q = f"SELECT {s_stats_cols} FROM school_statistics WHERE periodo = ? AND cole_nombre_establecimiento = ? AND cole_mcpio_ubicacion = ? AND cole_naturaleza = ? AND cole_calendario = ? AND cole_depto_ubicacion_norm = ?"
         s_avg_row = conn.execute(s_stats_q, (periodo, cole_nombre, cole_mcpio, cole_nat, cole_cal, cole_depto_colegio_norm)).fetchone()
 
@@ -339,11 +251,9 @@ def get_school_details(periodo, department_name_param, school_id_str):
                 avg = s_avg_row[precalc_col] if precalc_col and s_avg_row[precalc_col] is not None else 0
                 bench_res.append({'subject': disp_n, 'school_avg': avg, 'dept_avg': d_bench.get(orig_k,0), 'nat_avg': n_bench.get(orig_k,0)})
         else:
-            print(f"No statistics row found for school: {cole_nombre} in school_statistics. This is unexpected.")
-            # Fallback or default values if school_statistics entry is missing (should not happen with consistent DB)
+            print(f"No statistics row found for school: {cole_nombre} in school_statistics.")
             for disp_n, orig_k in s_disp_map: 
                 bench_res.append({'subject': disp_n, 'school_avg': 0, 'dept_avg': d_bench.get(orig_k,0), 'nat_avg': n_bench.get(orig_k,0)})
-
 
         desemp_map = [('Lectura Crítica', 'lectura_critica'), ('Matemáticas', 'matematicas'), ('C. Naturales', 'c_naturales'), ('Sociales y Ciu.', 'sociales_ciudadanas'), ('Inglés', 'ingles')]
         perf_levels = []
@@ -352,13 +262,12 @@ def get_school_details(periodo, department_name_param, school_id_str):
             lvl_data = conn.execute(lvl_q, (periodo, cole_nombre, cole_mcpio, cole_nat, cole_cal, cole_depto_colegio_norm, mat_k)).fetchall()
             perf_levels.append({'subject': disp_n, 'levels': {r['nivel']: r['count'] for r in lvl_data}, 'type': 'english' if 'ingles' == mat_k else 'standard'})
         
-        hist_data_scores = [s['punt_global'] for s in student_list if s['punt_global'] is not None] # Renamed to avoid conflict
+        hist_data_scores = [s['punt_global'] for s in student_list if s['punt_global'] is not None] 
         hist_evo = []
         try:
-            # Ensure periodo is a string like "20231"
             periodo_str = str(periodo)
             curr_y, curr_p_sfx = int(periodo_str[:-1]), periodo_str[-1]
-            for yr_offset in range(6): # Look back up to 5 previous equivalent periods
+            for yr_offset in range(6): 
                 prev_yr = curr_y - yr_offset
                 yr_key = f"{prev_yr}{curr_p_sfx}"
                 yr_disp = format_period_display(yr_key)
@@ -369,15 +278,12 @@ def get_school_details(periodo, department_name_param, school_id_str):
                 if h_row and h_row['avg_punt_global'] is not None: 
                     hist_evo.append({'periodo': yr_disp, 'media': h_row['avg_punt_global']})
                 else:
-                    # Check if the period generally exists in the database to differentiate "No data for this school" vs "Period doesn't exist"
                     p_exists_q = "SELECT 1 FROM national_benchmarks WHERE periodo = ? LIMIT 1"
                     p_exists = conn.execute(p_exists_q, (yr_key,)).fetchone()
-                    hist_evo.append({'periodo': yr_disp, 'media': 0 if p_exists else -1}) # 0 for "N/D Colegio", -1 for "N/D Periodo"
+                    hist_evo.append({'periodo': yr_disp, 'media': 0 if p_exists else -1}) 
         except ValueError as e: 
             print(f"Error parsing period for historical evolution: {periodo_str} - {e}")
-            # Add a placeholder if period parsing fails
             hist_evo.append({'periodo': format_period_display(periodo_str), 'media': -1})
-
 
         c_gen_row = conn.execute("SELECT DISTINCT cole_genero FROM student_results WHERE periodo = ? AND cole_nombre_establecimiento = ? AND cole_mcpio_ubicacion = ? AND cole_naturaleza = ? AND cole_calendario = ? AND cole_depto_ubicacion_norm = ? AND cole_genero IS NOT NULL AND TRIM(cole_genero) != '' LIMIT 1", (periodo, cole_nombre, cole_mcpio, cole_nat, cole_cal, cole_depto_colegio_norm)).fetchone()
         c_gen_disp = c_gen_row['cole_genero'] if c_gen_row and c_gen_row['cole_genero'] else ''
@@ -395,8 +301,8 @@ def get_school_details(periodo, department_name_param, school_id_str):
             'student_list': student_list,
             'benchmarks': bench_res,
             'performance_levels': perf_levels,
-            'histogram_data': hist_data_scores, # Use the renamed variable
-            'historical_evolution': sorted(hist_evo, key=lambda x: x['periodo']) # Sort by period for chart
+            'histogram_data': hist_data_scores, 
+            'historical_evolution': sorted(hist_evo, key=lambda x: x['periodo']) 
         })
     except Exception as e:
         print(f"Error in get_school_details: {str(e)}")
@@ -404,7 +310,7 @@ def get_school_details(periodo, department_name_param, school_id_str):
         traceback.print_exc()
         return jsonify({"error": f"Error interno del servidor: {str(e)}"}), 500
 
-
 if __name__ == '__main__':
     print("Para ejecutar la aplicación: flask --app app --debug run")
     print(f"BD: '{DATABASE_NAME}'. Asegúrate que exista y esté actualizada con 'create_database.py'.")
+    print(f"Los archivos JSON estáticos para listas de colegios deben estar en una ruta servible (ej. 'static/generated_school_data/').")
